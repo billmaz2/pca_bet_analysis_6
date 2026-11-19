@@ -2049,7 +2049,7 @@ const _ak=analyseKNN;
 analyseKNN=function(f,past,...r){PAST=past.slice();FIX=f.slice();return _ak(f,past,...r);};
 
 const sel=document.createElement('select');sel.id='dlScope';
-sel.innerHTML='<option value="cur">This season only</option><option value="both">Last + this season</option>';
+sel.innerHTML='<option value="cur">This season only</option><option value="both" selected>Last + this season</option>';
 const btn=document.createElement('button');btn.id='dlAll';btn.textContent='Download all games CSV';
 btn.title='Results and odds (1 / X / 2) of every game of the loaded championship';
 document.getElementById('svClear').after(' ',sel,' ',btn);
@@ -2221,12 +2221,16 @@ function stripDiagram(it){
   const {res}=PLOT,{past,lab,model}=res,x0=it.o[0],TX=0.01,VW=0.06,tilde=res.estHist?'~':'';
   const band=[],near=[];
   past.forEach((m,j)=>{const r=Math.abs(m.o[0]/x0-1);if(r<=TX)band.push(j);if(r<=VW)near.push(j);});
+  const tyEl=document.getElementById('scTy'),TY=tyEl?Math.max(0.001,+tyEl.value||0.05):0.05,allY=model.scores.map(q=>q[1]),yr=(Math.max(...allY)-Math.min(...allY))||1,yc=it.pc[1];
+  const inBox=band.filter(j=>Math.abs(model.scores[j][1]-yc)<=TY*yr),cb=[0,0,0];inBox.forEach(j=>cb[lab[j]]++);
   const cnt=[0,0,0];band.forEach(j=>cnt[lab[j]]++);
   const n=band.length,box=document.getElementById('dotInfo');
   let h='<div class="detail"><h3>Column ±1% on the x axis (odd 1) – past games with odd 1 between '+tilde+(x0*(1-TX)).toFixed(2)+' and '+tilde+(x0*(1+TX)).toFixed(2)+'</h3>'+
-    '<div class="note">Shaded band = ±1% around this game\'s odd 1 ('+tilde+x0.toFixed(2)+'); dots inside the band are bold, the ones just outside (up to ±6%) are faint. Vertical position = same y as the main diagram.</div>'+
+    '<div class="note">Shaded band = ±1% around this game\'s odd 1 ('+tilde+x0.toFixed(2)+'); the horizontal band is the y window (criterion 2, set in the Scan card); dots inside both bands have a dark ring; dots inside the column are bold, the ones just outside (up to ±6%) are faint. Vertical position = same y as the main diagram.</div>'+
     '<canvas id="stripCv"></canvas><div class="kpis"><div><span class="note">Games in the band</span><b>'+n+'</b></div>'+
-    [0,1,2].map(r=>'<div><span class="note">Came '+LETS[r]+'</span><b style="color:var(--c'+(r===1?'x':r+1)+')">'+cnt[r]+(n?' <small>('+(100*cnt[r]/n).toFixed(0)+'%)</small>':'')+'</b></div>').join('')+'</div>';
+    [0,1,2].map(r=>'<div><span class="note">Came '+LETS[r]+'</span><b style="color:var(--c'+(r===1?'x':r+1)+')">'+cnt[r]+(n?' <small>('+(100*cnt[r]/n).toFixed(0)+'%)</small>':'')+'</b></div>').join('')+'</div>'+
+    '<div class="kpis"><div><span class="note">Y window ±'+TY+' of the y range ('+(yc-TY*yr).toFixed(2)+' to '+(yc+TY*yr).toFixed(2)+'): games inside the column and the window</span><b>'+inBox.length+'</b></div>'+
+    [0,1,2].map(r=>'<div><span class="note">Came '+LETS[r]+'</span><b style="color:var(--c'+(r===1?'x':r+1)+')">'+cb[r]+(inBox.length?' <small>('+(100*cb[r]/inBox.length).toFixed(0)+'%)</small>':'')+'</b></div>').join('')+'</div>';
   if(n){
     h+='<div class="scroll"><table><tr><th>Date</th><th>Game</th><th>Result</th><th class="n sa">Odd 1</th><th class="n">X</th><th class="n">2</th></tr>';
     band.slice().sort((a,b)=>past[a].o[0]-past[b].o[0]).forEach(j=>{const m=past[j];
@@ -2237,7 +2241,7 @@ function stripDiagram(it){
   /* draw */
   const cv=document.getElementById('stripCv'),dpr=window.devicePixelRatio||1,W=cv.clientWidth||700,H=260,pad=40;
   cv.width=W*dpr;cv.height=H*dpr;const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
-  const C=plotCols(),ys=near.map(j=>model.scores[j][1]).concat([it.pc[1]]);
+  const C=plotCols(),ys=near.map(j=>model.scores[j][1]).concat([yc,yc-TY*yr,yc+TY*yr]);
   let y0=Math.min(...ys),y1=Math.max(...ys);const py=(y1-y0)*0.1||1;y0-=py;y1+=py;
   const xl=x0*(1-VW),xh=x0*(1+VW),X=v=>pad+(v-xl)/(xh-xl)*(W-2*pad),Y=v=>H-pad/1.3-(v-y0)/(y1-y0)*(H-pad/1.3-12);
   g.font='11px system-ui';g.fillStyle=C.mut;g.strokeStyle=C.line;g.lineWidth=1;
@@ -2247,9 +2251,11 @@ function stripDiagram(it){
   g.fillText('x = odd 1',W-pad-40,H-4);
   g.fillStyle=C.up;g.globalAlpha=0.12;g.fillRect(X(x0*(1-TX)),12,X(x0*(1+TX))-X(x0*(1-TX)),H-pad/1.3-12);g.globalAlpha=1;
   g.strokeStyle=C.up;g.setLineDash([4,3]);g.beginPath();g.moveTo(X(x0),12);g.lineTo(X(x0),H-pad/1.3);g.stroke();g.setLineDash([]);
-  const inB=new Set(band);
+  g.fillStyle=C.up;g.globalAlpha=0.12;g.fillRect(pad,Y(yc+TY*yr),W-pad*1.5,Y(yc-TY*yr)-Y(yc+TY*yr));g.globalAlpha=1;
+  g.strokeStyle=C.up;g.setLineDash([2,3]);[yc-TY*yr,yc+TY*yr].forEach(v=>{g.beginPath();g.moveTo(pad,Y(v));g.lineTo(W-pad/2,Y(v));g.stroke();});g.setLineDash([]);
+  const inB=new Set(band),inX=new Set(inBox);
   near.forEach(j=>{g.globalAlpha=inB.has(j)?0.95:0.3;g.beginPath();g.arc(X(past[j].o[0]),Y(model.scores[j][1]),inB.has(j)?6:4,0,7);g.fillStyle=C.res[lab[j]];g.fill();});
-  g.globalAlpha=1;
+  g.globalAlpha=1;g.strokeStyle=C.ink;g.lineWidth=2;inBox.forEach(j=>{g.beginPath();g.arc(X(past[j].o[0]),Y(model.scores[j][1]),8,0,7);g.stroke();});g.lineWidth=1;
   g.beginPath();g.arc(X(x0),Y(it.pc[1]),9,0,7);g.fillStyle=C.res[{'1':0,'X':1,'2':2}[it.pick]];g.fill();g.lineWidth=3;g.strokeStyle=C.up;g.stroke();g.lineWidth=1;
 }
 })();
@@ -2257,7 +2263,9 @@ function stripDiagram(it){
 <!-- ===== ADD-ON 9: scan several championships and suggest 1 / X / 2 + score ===== -->
 <style>
 #scLog{width:100%;font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px}
-#scList{width:100%;min-width:280px}
+#scList{width:100%;min-width:280px;max-height:330px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--card)}
+#scList .scG{font-size:12px;font-weight:700;color:var(--mut);margin:8px 0 2px}
+#scList .scItem{display:block;font-size:14px;color:var(--ink);margin:0;padding:2px 0;cursor:pointer}
 #scOut td,#scOut th{white-space:nowrap}
 #scOut .mini{display:inline-block;min-width:20px;text-align:center;padding:0 5px;border-radius:999px;color:#fff;font-weight:700;font-size:12px;margin-right:2px}
 #scOut .mini.best{outline:2px solid var(--ink)}
@@ -2278,12 +2286,13 @@ const _sm=showMap;showMap=function(f){if(SCANNING)return;return _sm(f);};
 const lgSel=g$('league');
 const card=document.createElement('div');card.className='card';card.id='scanCard';
 card.innerHTML='<h2 style="font-size:16px;margin:0 0 8px">Scan championships – suggestions for the coming games</h2>'+
- '<div class="row"><div style="flex:2;min-width:280px"><label>Championships (click to select, Ctrl/Cmd-click or Shift-click for several)</label><select id="scList" multiple size="14"></select></div>'+
+ '<div class="row"><div style="flex:2;min-width:280px"><label>Championships (tick any boxes you want, they do not need to be next to each other)</label><div id="scList"></div></div>'+
  '<div style="flex:1;min-width:230px"><div class="row" style="flex-direction:column;align-items:stretch;gap:8px">'+
  '<div><label>Column on the x axis (odd 1): ± %</label><input type="number" id="scTx" value="1" step="0.5" min="0.1" style="width:100%"></div>'+
+ '<div><label>Criterion 7 – last 5 games with the same odd 1: ± % (0.1 = very tight)</label><input type="number" id="scT5" value="0.1" step="0.05" min="0.01" style="width:100%"></div>'+
  '<div><label>Y window: ± fraction of the y range (0.05 = 5%)</label><input type="number" id="scTy" value="0.05" step="0.01" min="0.005" style="width:100%"></div>'+
  '<div><label>Minimum games in the column to count as "many"</label><input type="number" id="scMinN" value="10" min="3" style="width:100%"></div>'+
- '<div><label>Show games that meet at least … of the 6 criteria</label><select id="scMinC" style="width:100%"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></div>'+
+ '<div><label>Show games that meet at least … of the 7 criteria</label><select id="scMinC" style="width:100%"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option></select></div>'+
  '</div></div></div>'+
  '<div class="row" style="margin-top:10px"><button class="primary" id="scanGo">Scan champs</button><button id="scAll">Select all</button><button id="scNone">Clear</button><button id="scCsvBtn">Download suggestions CSV</button>'+
  '<span class="note">Uses the "Days ahead", "Neighbours" and "Weight" settings above. The page above shows the last championship that was scanned.</span></div>'+
@@ -2292,14 +2301,14 @@ card.innerHTML='<h2 style="font-size:16px;margin:0 0 8px">Scan championships –
 document.querySelector('.card').after(card);
 (function fill(){
   const sl=g$('scList');
-  const add=(parent,o)=>{if(o.value==='DEMO')return;const n=document.createElement('option');n.value=o.value;n.textContent=o.textContent;parent.appendChild(n);};
+  const add=(parent,o)=>{if(o.value==='DEMO')return;const l=document.createElement('label');l.className='scItem';const c=document.createElement('input');c.type='checkbox';c.value=o.value;c.dataset.t=o.textContent;l.appendChild(c);l.appendChild(document.createTextNode(' '+o.textContent));parent.appendChild(l);};
   [...lgSel.children].forEach(ch=>{
-    if(ch.tagName==='OPTGROUP'){const og=document.createElement('optgroup');og.label=ch.label;[...ch.children].forEach(o=>add(og,o));sl.appendChild(og);}
+    if(ch.tagName==='OPTGROUP'){const h=document.createElement('div');h.className='scG';h.textContent=ch.label;sl.appendChild(h);[...ch.children].forEach(o=>add(sl,o));}
     else add(sl,ch);
   });
 })();
-g$('scAll').onclick=()=>[...g$('scList').options].forEach(o=>o.selected=true);
-g$('scNone').onclick=()=>[...g$('scList').options].forEach(o=>o.selected=false);
+g$('scAll').onclick=()=>g$('scList').querySelectorAll('input').forEach(c=>c.checked=true);
+g$('scNone').onclick=()=>g$('scList').querySelectorAll('input').forEach(c=>c.checked=false);
 const log=s=>{const t=g$('scLog');t.value+=s+'\n';t.scrollTop=t.scrollHeight;};
 
 /* ---------- the six criteria for one upcoming game ---------- */
@@ -2324,7 +2333,7 @@ function evalAll(res,title,P){
     const band=[],box=[];
     past.forEach((m,j)=>{if(Math.abs(m.o[0]/x0-1)<=P.tx){band.push(j);if(Math.abs(model.scores[j][1]-y0)<=P.ty*yr)box.push(j);}});
     const cb=[0,0,0],cx=[0,0,0];band.forEach(j=>cb[lab[j]]++);box.forEach(j=>cx[lab[j]]++);
-    const crit=[0,1,2].map(()=>[false,false,false,false,false,false]);
+    const crit=[0,1,2].map(()=>[false,false,false,false,false,false,false]);
     /* 1. the column: many games, most of one result */
     const mb=cb.indexOf(Math.max(...cb));
     if(band.length>=P.minn&&cb[mb]/band.length>0.5)crit[mb][0]=true;
@@ -2354,21 +2363,26 @@ function evalAll(res,title,P){
     const cl=lab[it.nearest[0]];crit[cl][4]=true;
     /* 6. the index (weighted average of the nearest games) */
     const pk={'1':0,'X':1,'2':2}[it.pick];crit[pk][5]=true;
+    /* 7. the last 5 games of the championship at the same point (odd 1 within ±1%): majority result */
+    const last5=past.map((m,j)=>j).filter(j=>Math.abs(past[j].o[0]/x0-1)<=P.t5).sort((a,b)=>past[a].date-past[b].date).slice(-5),c5=[0,0,0];
+    last5.forEach(j=>c5[lab[j]]++);
+    const m5=c5.indexOf(Math.max(...c5));
+    if(last5.length>=3&&c5[m5]>last5.length/2)crit[m5][6]=true;
     const totals=crit.map(c=>c.filter(Boolean).length);
     let best=0;for(let r=1;r<3;r++)if(totals[r]>totals[best]||(totals[r]===totals[best]&&cb[r]>cb[best]))best=r;
     const sc=suggestScore(res,f,best);
     return {league:title,date:f.date,home:f.HomeTeam,away:f.AwayTeam,est:!!(f.est||res.estHist),o:it.o,best,total:totals[best],totals,crit,
-      band:cb,bandN:band.length,box:cx,boxN:box.length,vb,votes,vtxt,closest:cl,avg:it.avg,pick:pk,score:sc};
+      band:cb,bandN:band.length,last5:c5,last5N:last5.length,box:cx,boxN:box.length,vb,votes,vtxt,closest:cl,avg:it.avg,pick:pk,score:sc};
   });
 }
 
 /* ---------- scan loop: runs the normal Load & analyse for each selected championship ---------- */
 g$('scanGo').onclick=async()=>{
-  const sel=[...g$('scList').selectedOptions].map(o=>({v:o.value,t:o.textContent}));
+  const sel=[...g$('scList').querySelectorAll('input:checked')].map(c=>({v:c.value,t:c.dataset.t}));
   const go=g$('go');
   if(!sel.length){log('Select at least one championship first.');return;}
   if(go.disabled||SCANNING){log('Another load is still running – wait for it to finish.');return;}
-  PAR={tx:Math.max(0.001,+g$('scTx').value/100),ty:Math.max(0.001,+g$('scTy').value),minn:Math.max(3,+g$('scMinN').value),minc:+g$('scMinC').value};
+  PAR={t5:Math.max(0.0001,+g$('scT5').value/100),tx:Math.max(0.001,+g$('scTx').value/100),ty:Math.max(0.001,+g$('scTy').value),minn:Math.max(3,+g$('scMinN').value),minc:+g$('scMinC').value};
   SCANNING=true;g$('scanGo').disabled=true;ROWS=[];g$('scLog').value='';g$('scOut').innerHTML='';
   const prevVal=lgSel.value;let tried=0;
   for(let i=0;i<sel.length;i++){
@@ -2394,24 +2408,25 @@ function showResults(){
   const out=g$('scOut');
   if(!ROWS.length){out.innerHTML='';return;}
   const list=ROWS.filter(r=>r.total>=PAR.minc).sort((a,b)=>b.total-a.total||a.date-b.date);
-  let h='<div class="note" style="margin-bottom:6px"><b>'+list.length+'</b> of '+ROWS.length+' scanned games meet at least <b>'+PAR.minc+'</b> of the 6 criteria. '+
+  let h='<div class="note" style="margin-bottom:6px"><b>'+list.length+'</b> of '+ROWS.length+' scanned games meet at least <b>'+PAR.minc+'</b> of the 7 criteria. '+
    'Criteria: <b>1</b> column ±'+(PAR.tx*100).toFixed(1)+'% on odd 1 has ≥'+PAR.minn+' games and most are of the same result · <b>2</b> y window ±'+PAR.ty+' of the range inside the column is all one result (≥3 games) · '+
-   '<b>3</b> value bet in this championship (odd ±5%, ≥20 games, hit rate × odd &gt; 1) · <b>4</b> home team at home and away team away, with a similar odd of 1, X and 2 (±3%), mostly end the same way · <b>5</b> the closest game · <b>6</b> the index (weighted average of the nearest games). '+
+   '<b>3</b> value bet in this championship (odd ±5%, ≥20 games, hit rate × odd &gt; 1) · <b>4</b> home team at home and away team away, with a similar odd of 1, X and 2 (±3%), mostly end the same way · <b>5</b> the closest game · <b>6</b> the index (weighted average of the nearest games) · <b>7</b> the last 5 games of the championship at the same point (odd 1 within ±'+(PAR.t5*100).toFixed(2)+'%): majority result (at least 3 of them). '+
    'Outlined letter = the suggested result. ~ = odds estimated by the model.</div>';
   if(!list.length){out.innerHTML=h+'<div class="note">No game reaches that many criteria. Lower the number above to see more.</div>';return;}
   h+='<div class="scroll"><table><tr><th>Championship</th><th>Date</th><th>Match</th><th class="n">1</th><th class="n">X</th><th class="n">2</th><th>Suggest</th><th class="n">Criteria</th>'+
-     '<th title="column ±1% on odd 1: games in the column and how they ended (1-X-2)">1 Column</th><th title="y window inside the column">2 Y window</th><th title="value bet">3 Value</th><th title="home team at home and away team away: votes of the six comparisons">4 Teams</th><th>5 Closest</th><th>6 Index</th><th>Score</th></tr>';
+     '<th title="column ±1% on odd 1: games in the column and how they ended (1-X-2)">1 Column</th><th title="y window inside the column">2 Y window</th><th title="value bet">3 Value</th><th title="home team at home and away team away: votes of the six comparisons">4 Teams</th><th>5 Closest</th><th>6 Index</th><th title="last 5 games with the same odd 1 in this championship: counts 1-X-2">7 Last 5</th><th>Score</th></tr>';
   for(const x of list){
     const e=x.est?'~':'',pr=x.o.map(v=>e+v.toFixed(2));
     const vbTip=x.vb.map((v,k)=>LET[k]+': '+v.h+'/'+v.n+(v.roi==null?'':' → '+(v.roi>0?'+':'')+(v.roi*100).toFixed(0)+'%')).join(' · ');
     h+='<tr class="'+(x.total>=5?'strong':'')+'"><td>'+esc(x.league)+'</td><td>'+fmtD(x.date)+'</td><td>'+esc(x.home)+' – '+esc(x.away)+'</td>'+
       '<td class="n">'+pr[0]+'</td><td class="n">'+pr[1]+'</td><td class="n">'+pr[2]+'</td>'+
-      '<td>'+mini(x.best,x.best)+'</td><td class="n"><b>'+x.total+'/6</b></td>'+
+      '<td>'+mini(x.best,x.best)+'</td><td class="n"><b>'+x.total+'/7</b></td>'+
       '<td title="'+esc(x.bandN+' games in the column: 1:'+x.band[0]+' X:'+x.band[1]+' 2:'+x.band[2])+'">'+letters(x,0)+' <span class="note cnt">'+x.bandN+' · '+x.band.join('-')+'</span></td>'+
       '<td title="'+esc(x.boxN+' games in the window: 1:'+x.box[0]+' X:'+x.box[1]+' 2:'+x.box[2])+'">'+letters(x,1)+' <span class="note cnt">'+x.boxN+' · '+x.box.join('-')+'</span></td>'+
       '<td title="'+esc(vbTip)+'">'+letters(x,2)+'</td>'+
       '<td title="'+esc(x.vtxt.join('  ')+'  (H = home team at home, A = away team away; counts 1-X-2)')+'">'+letters(x,3)+' <span class="note cnt">'+x.votes.join('-')+'</span></td>'+
       '<td>'+letters(x,4)+'</td><td>'+letters(x,5)+' <span class="note cnt">'+(x.avg>0?'+':'')+x.avg.toFixed(2)+'</span></td>'+
+      '<td title="'+esc('last '+x.last5N+' games with the same odd 1: 1:'+x.last5[0]+' X:'+x.last5[1]+' 2:'+x.last5[2])+'">'+letters(x,6)+' <span class="note cnt">'+x.last5N+' · '+x.last5.join('-')+'</span></td>'+
       '<td title="expected goals '+x.score.lh.toFixed(2)+' – '+x.score.la.toFixed(2)+' from '+x.score.nh+' home games of the home team and '+x.score.na+' away games of the away team"><b>'+x.score.score+'</b> <span class="note cnt">('+x.score.lh.toFixed(1)+'–'+x.score.la.toFixed(1)+')</span></td></tr>';
   }
   out.innerHTML=h+'</table></div><p class="note">Score = the most likely scoreline (Poisson) that matches the suggested result, using the goals the home team scores/concedes at home and the away team scores/concedes away (last + this season, shrunk toward the league average). Past results do not guarantee anything. Gamble responsibly.</p>';
@@ -2421,16 +2436,108 @@ function showResults(){
 g$('scCsvBtn').onclick=()=>{
   if(!ROWS.length){log('Nothing to download yet – press Scan champs first.');return;}
   const q=v=>{v=String(v==null?'':v);return /[",\n;]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;},d2=n=>String(n).padStart(2,'0');
-  let csv='championship,date,time,home,away,odd_1,odd_X,odd_2,suggestion,criteria_met,c1_column,c2_ywindow,c3_value,c4_teams,c5_closest,c6_index,score,est_odds\n';
+  let csv='championship,date,time,home,away,odd_1,odd_X,odd_2,suggestion,criteria_met,c1_column,c2_ywindow,c3_value,c4_teams,c5_closest,c6_index,c7_last5,score,est_odds\n';
   const L=(x,c)=>[0,1,2].filter(r=>x.crit[r][c]).map(r=>LET[r]).join('');
   for(const x of ROWS.slice().sort((a,b)=>b.total-a.total||a.date-b.date)){
     const d=x.date;
     csv+=[x.league,d.getFullYear()+'-'+d2(d.getMonth()+1)+'-'+d2(d.getDate()),d2(d.getHours())+':'+d2(d.getMinutes()),x.home,x.away,x.o[0].toFixed(2),x.o[1].toFixed(2),x.o[2].toFixed(2),
-      LET[x.best],x.total,L(x,0),L(x,1),L(x,2),L(x,3),L(x,4),L(x,5),x.score.score,x.est?1:0].map(q).join(',')+'\n';
+      LET[x.best],x.total,L(x,0),L(x,1),L(x,2),L(x,3),L(x,4),L(x,5),L(x,6),x.score.score,x.est?1:0].map(q).join(',')+'\n';
   }
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));a.download='scan_suggestions.csv';
   document.body.appendChild(a);a.click();a.remove();
 };
+})();
+</script>
+
+<!-- ===== ADD-ON 10: which championships have games in the next 24 / 48 / 120 hours ===== -->
+<style>
+#whenOut td,#whenOut th{white-space:nowrap}
+#whenOut details summary{cursor:pointer}
+#whenOut .gl{font-size:12px;color:var(--mut);white-space:normal;margin:2px 0 0 0}
+</style>
+<script>
+(function(){
+const g$=id=>document.getElementById(id),lgSel=g$('league');
+const DOM={E0:'eng.1',E1:'eng.2',E2:'eng.3',E3:'eng.4',EC:'eng.5',SP1:'esp.1',SP2:'esp.2',I1:'ita.1',I2:'ita.2',D1:'ger.1',D2:'ger.2',F1:'fra.1',F2:'fra.2',
+  N1:'ned.1',B1:'bel.1',P1:'por.1',T1:'tur.1',G1:'gre.1',SC0:'sco.1',SC1:'sco.2'};
+const card=document.createElement('div');card.className='card';card.id='whenCard';
+card.innerHTML='<h2 style="font-size:16px;margin:0 0 8px">Championships with games soon</h2>'+
+ '<div class="row"><div><label>Games starting within the next</label><select id="whenH"><option value="24" selected>24 hours</option><option value="48">48 hours</option><option value="120">5 days (120 hours)</option></select></div>'+
+ '<div><button class="primary" id="whenGo">Find championships</button></div>'+
+ '<div><button id="whenAdd" title="Tick all of them in the Scan championships list">Add all to scan list</button></div>'+
+ '<div><button id="whenScan" title="Tick them and start Scan champs">Scan these now</button></div></div>'+
+ '<div class="status" id="whenSt">Press "Find championships" (it also runs once automatically when the page opens). Data: ESPN schedule, the same source the page already uses for upcoming games – FIFA\'s own site has no open data feed that a web page can read.</div>'+
+ '<div id="whenOut" class="scroll" style="margin-top:8px"></div>';
+document.querySelector('.wrap .card').before(card);
+
+function comps(){
+  const seen=new Map();
+  [...lgSel.options].forEach(o=>{
+    const k=o.value;if(k==='DEMO')return;
+    const c=DOM[k]?[DOM[k]]:ESPN[k]?(Array.isArray(ESPN[k])?ESPN[k]:[ESPN[k]]):null;if(!c)return;
+    const id=c.join('|');if(seen.has(id))return;
+    const nl=/^UNL_/.test(k);
+    seen.set(id,{key:k,name:nl?'UEFA Nations League':o.textContent,cands:c,nl});
+  });
+  return [...seen.values()];
+}
+async function load(c,from,to){for(const sl of c.cands){try{return await espnRange(sl,from,to,10*60e3);}catch(e){}}return null;}
+let FOUND=[],RUN=0;
+async function find(){
+  const run=++RUN,H=+g$('whenH').value,now=Date.now(),end=now+H*36e5,st=g$('whenSt'),out=g$('whenOut');
+  ESPN_EURO=false;                                   // do not skip Sun/Mon/Fri days here
+  const from=new Date(now-864e5),to=new Date(end+864e5),list=comps();
+  FOUND=[];out.innerHTML='';let done=0,failed=0;
+  g$('whenGo').disabled=true;
+  st.textContent='Checking '+list.length+' competitions… 0%';
+  await pool(list,4,async c=>{
+    const ev=await load(c,from,to);
+    if(run!==RUN)return;
+    if(ev===null)failed++;
+    else{const g=ev.filter(m=>!m.played&&m.t>=now&&m.t<=end).sort((a,b)=>a.t-b.t);if(g.length)FOUND.push({...c,games:g});}
+    st.textContent='Checking '+list.length+' competitions… '+Math.round(100*(++done)/list.length)+'%';
+  });
+  if(run!==RUN)return;
+  g$('whenGo').disabled=false;
+  FOUND.sort((a,b)=>a.games[0].t-b.games[0].t);
+  const gn=FOUND.reduce((s,c)=>s+c.games.length,0);
+  st.textContent=FOUND.length+' championship(s) with '+gn+' game(s) in the next '+(H===120?'5 days':H+' hours')+' (from '+new Date(now).toLocaleString('en-GB')+')'+
+    (failed?' · '+failed+' competition(s) could not be read (ESPN did not answer or does not cover them)':'')+'.';
+  show();
+}
+const hm=t=>new Date(t).toLocaleString('en-GB',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+function show(){
+  const out=g$('whenOut');
+  if(!FOUND.length){out.innerHTML='<div class="note">No games found in this period.</div>';return;}
+  let h='<table><tr><th>Championship</th><th class="n">Games</th><th>Next kickoff</th><th>Games</th><th></th></tr>';
+  FOUND.forEach((c,i)=>{
+    h+='<tr><td><b>'+esc(c.name)+'</b></td><td class="n">'+c.games.length+'</td><td>'+hm(c.games[0].t)+'</td><td style="white-space:normal">'+
+      '<details><summary>show</summary>'+c.games.map(m=>'<div class="gl">'+hm(m.t)+' · '+esc(m.home)+' – '+esc(m.away)+'</div>').join('')+'</details></td>'+
+      '<td>'+(c.nl?'<span class="note">pick a group in the list</span>':'<button data-sel="'+i+'">Open</button> <button data-add="'+i+'">Add to scan</button>')+'</td></tr>';
+  });
+  out.innerHTML=h+'</table>';
+}
+function tick(keys){
+  const box=g$('scList');if(!box)return 0;let n=0;
+  keys.forEach(k=>{const c=box.querySelector('input[value="'+k+'"]');if(c){c.checked=true;n++;}});
+  return n;
+}
+g$('whenOut').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.sel!==undefined){lgSel.value=FOUND[+b.dataset.sel].key;lgSel.dispatchEvent(new Event('change'));window.scrollTo({top:0,behavior:'smooth'});}
+  if(b.dataset.add!==undefined){const c=FOUND[+b.dataset.add];b.textContent=tick([c.key])?'Added ✓':'not in list';}
+});
+const keysAll=()=>FOUND.filter(c=>!c.nl).map(c=>c.key);
+g$('whenAdd').onclick=()=>{const n=tick(keysAll());g$('whenSt').textContent+=' · '+n+' ticked in the Scan list.';};
+g$('whenScan').onclick=()=>{
+  if(!FOUND.length){g$('whenSt').textContent='Press "Find championships" first.';return;}
+  const box=g$('scList');if(box)box.querySelectorAll('input').forEach(c=>c.checked=false);
+  tick(keysAll());
+  const b=g$('scanGo');if(b){b.scrollIntoView({behavior:'smooth',block:'center'});b.click();}
+};
+g$('whenGo').onclick=find;
+g$('whenH').onchange=find;
+setTimeout(find,800);
 })();
 </script>
 
