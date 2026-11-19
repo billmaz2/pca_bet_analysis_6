@@ -1,0 +1,2438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odds PCA Clusters 1-X-2</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--ink:#1b1f24;--mut:#6b7380;--line:#e1e4ea;--c1:#1f9d55;--cx:#e0a100;--c2:#d64545;--acc:#2f5bea;--cp:#8e44ad}
+  @media (prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1d2128;--ink:#e8ebf0;--mut:#98a1ae;--line:#2d333c;--c1:#3ec97a;--cx:#f0b429;--c2:#f06a6a;--acc:#6f93ff;--cp:#b388ff}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:4px 0 2px} .sub{color:var(--mut);margin:0 0 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+  label{display:block;font-size:12px;color:var(--mut);margin-bottom:3px}
+  select,input[type=number],button{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+  button{cursor:pointer} button.primary{background:var(--acc);color:#fff;border-color:var(--acc)}
+  .status{font-size:13px;color:var(--mut);margin-top:8px;white-space:pre-wrap}
+  .files{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:10px}
+  .files div{font-size:12px;color:var(--mut)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  th{font-size:12px;color:var(--mut);font-weight:600}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  .pill{display:inline-block;min-width:34px;text-align:center;padding:2px 8px;border-radius:999px;color:#fff;font-weight:700}
+  .p1{background:var(--c1)} .pX{background:var(--cx)} .p2{background:var(--c2)}
+  .scroll{overflow-x:auto}
+  canvas{width:100%;height:420px;display:block;touch-action:none;cursor:grab;border:1px solid var(--line);border-radius:8px}
+  .ptools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+  .dotinfo{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px}
+  .dotinfo table{margin-top:6px;font-size:12px}
+  .legend{display:flex;gap:14px;font-size:13px;color:var(--mut);margin-top:6px;flex-wrap:wrap}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+  .note{font-size:12px;color:var(--mut)}
+  .prog{height:10px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:10px}
+  .prog i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+  .prog.ind i{width:40%;animation:ind 1s infinite linear}
+  @keyframes ind{from{margin-left:-40%}to{margin-left:100%}}
+  .form span{display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border-radius:3px;font-size:10px;color:#fff;margin-right:2px}
+  .fW{background:var(--c1)}.fD{background:var(--cx)}.fL{background:var(--c2)}
+  tr.zone td:first-child{border-left:3px solid var(--acc)}
+  .bar{display:flex;height:8px;border-radius:4px;overflow:hidden;min-width:90px}
+  .bar span{display:block}
+  /* results matrix */
+  table.mx{width:auto;border-collapse:separate;border-spacing:2px;font-size:12px}
+  table.mx th,table.mx td{border:0;padding:0;text-align:center}
+  table.mx th.col{font-size:11px;color:var(--mut);width:38px;min-width:38px;padding-bottom:3px}
+  table.mx th.rowh{text-align:right;padding-right:8px;font-size:12px;color:var(--ink);font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--card)}
+  table.mx td{width:38px;min-width:38px;height:26px;border-radius:4px;font-variant-numeric:tabular-nums;font-weight:600;color:#fff}
+  table.mx td.m1{background:var(--c1)} table.mx td.mX{background:var(--cx)} table.mx td.m2{background:var(--c2)}
+  table.mx td.mself{background:var(--line)}
+  table.mx td.sel{outline:3px solid var(--ink)}
+  table.mx td.mnone{background:transparent;border:1px dashed var(--line);color:var(--mut);font-weight:400}
+  /* goals matrix */
+  table.gm th,table.gm td{text-align:center;padding:6px 7px}
+  table.gm th.tn,table.gm td.tn{text-align:left}
+  table.gm th.grp{border-bottom:2px solid var(--acc);color:var(--ink)}
+  table.gm td.sep,table.gm th.sep{border-left:2px solid var(--line)}
+  table.gm tr.lg td{font-weight:700;background:var(--bg)}
+  /* scoreline matrix */
+  table.sc{width:auto;border-collapse:separate;border-spacing:3px}
+  table.sc th,table.sc td{border:0;text-align:center;padding:0}
+  table.sc th{font-size:12px;color:var(--ink);width:44px;min-width:44px;height:30px}
+  table.sc th.axis{color:var(--mut);font-weight:400;font-size:11px;width:auto;padding:0 6px}
+  table.sc td{width:44px;min-width:44px;height:36px;border-radius:6px;font-variant-numeric:tabular-nums;font-weight:700;background:var(--bg);color:var(--mut)}
+  table.sc td.has{cursor:pointer;color:var(--ink);border:1px solid var(--line)}
+  table.sc td.has:hover{outline:2px solid var(--acc)}
+  table.sc td.sel{outline:3px solid var(--acc)}
+  .detail{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+  .detail h3{font-size:14px;margin:0 0 6px}
+  .detail .g{display:flex;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px;flex-wrap:wrap}
+  .detail .g .d{color:var(--mut);font-size:12px;min-width:100px}
+  /* upcoming games = purple */
+  table.mx td.mup{background:var(--cp);color:#fff;cursor:pointer;border:0;font-weight:600;font-size:11px}
+  tr.up{cursor:pointer}
+  tr.up:hover td{background:var(--bg)}
+  tr.up td:first-child{border-left:3px solid var(--cp)}
+  tr.up td:nth-child(2){color:var(--cp);font-weight:600}
+  .hist{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px}
+  .hist>div{flex:1;min-width:330px}
+  .hist .box{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:4px}
+  .hist table{margin:0}
+  .hist td.key,.hist th.key{background:color-mix(in srgb,var(--cp) 18%,transparent);font-weight:700}
+  /* stadium map */
+  #map{height:460px;border-radius:8px;border:1px solid var(--line);z-index:0;background:var(--bg)}
+  .leaflet-popup-content{font:13px/1.5 system-ui,Segoe UI,Roboto,sans-serif}
+  .mapdays{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:13px;color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>European leagues: PCA + clustering for 1 / X / 2</h1>
+  <p class="sub">PCA on the odds only. Past games (this season and last) keep their real result; each upcoming game is matched to its nearest past games in odds space and their results vote for 1 / X / 2.</p>
+
+  <div class="card">
+    <div class="row">
+      <div><label>Championship</label>
+        <select id="league">
+          <optgroup label="Domestic leagues (football-data)">
+          <option value="E0">England – Premier League</option>
+          <option value="E1">England – Championship</option>
+          <option value="E2">England – League One</option>
+          <option value="E3">England – League Two</option>
+          <option value="EC">England – National League</option>
+          <option value="SP1">Spain – La Liga</option>
+          <option value="SP2">Spain – Segunda División</option>
+          <option value="I1">Italy – Serie A</option>
+          <option value="I2">Italy – Serie B</option>
+          <option value="D1">Germany – Bundesliga</option>
+          <option value="D2">Germany – 2. Bundesliga</option>
+          <option value="F1">France – Ligue 1</option>
+          <option value="F2">France – Ligue 2</option>
+          <option value="N1">Netherlands – Eredivisie</option>
+          <option value="B1">Belgium – Pro League</option>
+          <option value="P1">Portugal – Primeira Liga</option>
+          <option value="T1">Turkey – Süper Lig</option>
+          <option value="G1">Greece – Super League</option>
+          <option value="SC0">Scotland – Premiership</option>
+          <option value="SC1">Scotland – Championship</option>
+          </optgroup>
+          <optgroup label="European cups (ESPN)">
+            <option value="CL">UEFA Champions League</option>
+            <option value="EL">UEFA Europa League</option>
+            <option value="UECL">UEFA Conference League</option>
+          </optgroup>
+          <optgroup label="More leagues &amp; cups (ESPN)">
+            <option value="SWE">Sweden – Allsvenskan</option>
+            <option value="NOR">Norway – Eliteserien</option>
+            <option value="FIN">Finland – Veikkausliiga</option>
+            <option value="HUN">Hungary – NB I</option>
+            <option value="CZE">Czech Republic – First League</option>
+            <option value="GRC">Greece – Greek Cup</option>
+          </optgroup>
+        </select></div>
+      <div><label>Neighbours</label>
+        <select id="knn"><option>3</option><option selected>5</option><option>7</option><option>10</option><option>15</option><option>25</option></select></div>
+      <div><label>Weight of each neighbour</label>
+        <select id="wmode"><option value="inv" selected>Closeness (1 ÷ distance)</option><option value="dist">Distance (as written)</option></select></div>
+      <div><label>Axis scale</label>
+        <select id="axscale"><option value="raw" selected>As is (x = odd 1)</option><option value="equal">Equal spread on x and y</option></select></div>
+      <div><label>Days ahead</label>
+        <select id="days"><option>3</option><option selected>4</option></select></div>
+      <div><button class="primary" id="go">Load &amp; analyse</button></div>
+      <div><button id="demo">Demo data</button></div>
+    </div>
+    <div class="status" id="status"></div>
+    <div class="prog" id="prog" hidden><i id="progBar"></i></div>
+  </div>
+
+  <div class="card" id="mapCard" hidden>
+    <h2 style="font-size:16px;margin:0 0 8px">Stadium map &amp; kickoff weather (upcoming games)</h2>
+    <div id="map"></div>
+    <div class="status" id="mapStatus"></div>
+    <div class="mapdays" id="mapDays"></div>
+    <div class="legend">
+      <span>☀️ sun · ⛅ partly cloudy · ☁️ overcast · 🌫 fog · 🌧 rain · 🌨 snow · ⛈ thunder</span>
+      <span>🟢 Good for football (no rain, 5–28 °C, wind &lt; 30 km/h) · 🟡 So-so · 🔴 Extreme (heavy rain/snow/thunder, wind ≥ 50 km/h, temp ≤ 0 or ≥ 33 °C)</span>
+      <span>Club leagues: stadium coordinates from the league's Wikipedia season page (club → stadium → town), with Wikidata, TheSportsDB and OpenStreetMap as fallbacks. National teams: the venue of each match is read from ESPN (so a changed stadium is picked up automatically) and located with OpenStreetMap. Weather from Open-Meteo at kickoff – all keyless APIs.</span>
+    </div>
+  </div>
+
+  <div class="card" id="stCard" hidden>
+    <h2 style="font-size:16px;margin:0 0 8px" id="stTitle">League table</h2>
+    <div class="scroll"><table id="stTbl"></table></div>
+  </div>
+
+  <div class="card" id="mxCard" hidden>
+    <h2 style="font-size:16px;margin:0 0 8px" id="mxTitle">Results matrix</h2>
+    <div class="scroll"><table class="mx" id="mxTbl"></table></div>
+    <div class="detail" id="mxDetail" hidden></div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--c1)"></i>Home win</span>
+      <span><i class="dot" style="background:var(--cx)"></i>Draw</span>
+      <span><i class="dot" style="background:var(--c2)"></i>Away win</span>
+      <span>Rows = home team, columns = away team, same order as the table. Score shown as home–away; dashed = not played yet; purple "vs" = upcoming game in the window (click it for the history of both teams); * = the two teams met more than once (the latest is shown, click to see all). Hover or click a score to see the date and the odds (1 / X / 2) of that game.</span>
+    </div>
+  </div>
+
+  <div class="card" id="gcCard" hidden>
+    <h2 style="font-size:16px;margin:0 0 8px" id="gcTitle">Goals matrix</h2>
+    <div class="scroll"><table class="gm" id="gcTbl"></table></div>
+    <p class="note">GF = goals scored, GA = goals conceded, Avg = per game. Home and away are separate categories; the last row is the average of all teams. This season only.</p>
+  </div>
+
+  <div class="card" id="scCard" hidden>
+    <h2 style="font-size:16px;margin:0 0 8px">Scoreline matrix</h2>
+    <div class="row" style="margin-bottom:10px">
+      <div><label>Team</label><select id="scTeam"></select></div>
+      <div><label>Games</label><select id="scVen"><option value="all">Home and away</option><option value="home">Home games only</option><option value="away">Away games only</option></select></div>
+    </div>
+    <div class="scroll"><table class="sc" id="scTbl"></table></div>
+    <p class="note">Rows = home goals, columns = away goals; each cell counts how many times that exact score happened in the selected team's games. Click a filled cell to see those games with their date and odds.</p>
+    <div class="detail" id="scDetail" hidden></div>
+  </div>
+
+  <div class="card" id="outCard" hidden>
+    <div class="note" id="varInfo"></div>
+    <div class="ptools"><button id="zin" title="Zoom in">＋</button><button id="zout" title="Zoom out">−</button><button id="zreset">Reset view</button><span class="note">Scroll or use ＋/− to magnify · drag to move · click a dot for the game</span></div>
+    <canvas id="plot"></canvas>
+    <div id="dotInfo" class="dotinfo note">Click any dot to see its game, odds and result.</div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--c1)"></i>1</span>
+      <span><i class="dot" style="background:var(--cx)"></i>X</span>
+      <span><i class="dot" style="background:var(--c2)"></i>2</span>
+      <span><i class="dot" style="background:transparent;border:3px solid var(--cp);width:12px;height:12px;vertical-align:-2px"></i>Upcoming</span>
+      <span>Small dots = past games coloured by their real result · big dots with a purple outline = upcoming games, filled with the colour of the suggestion (1 / X / 2, also written next to the name) · selecting an upcoming game draws lines to its nearest past games and shows the history of both teams</span>
+    </div>
+  </div>
+
+  <div class="card" id="tblCard" hidden>
+    <h2 style="font-size:16px;margin:0 0 8px">Upcoming games</h2>
+    <div class="scroll"><table id="tbl"></table></div>
+    <p class="note">Average = Σ(weight × score) ÷ Σ(weight) over the nearest games, score +1 for a 1, 0 for an X, −1 for a 2. It describes what happened in games with similar odds, not a guaranteed result. Gamble responsibly.</p>
+  </div>
+</div>
+
+<script>
+/*CORE*/
+function parseCSV(text){
+  const rows=[];let row=[],cur='',q=false;
+  text=text.replace(/^\uFEFF/,'');
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c=='"'){ if(text[i+1]=='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else if(c=='"') q=true;
+    else if(c==','){row.push(cur);cur='';}
+    else if(c=='\n'||c=='\r'){ if(c=='\r'&&text[i+1]=='\n')i++; row.push(cur);cur=''; if(row.length>1||row[0]!=='')rows.push(row); row=[]; }
+    else cur+=c;
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  if(!rows.length) return [];
+  const h=rows[0].map(s=>s.trim());
+  return rows.slice(1).map(r=>{const o={};h.forEach((k,i)=>o[k]=(r[i]||'').trim());return o;});
+}
+function parseDate(d,t){
+  const m=(d||'').split('/'); if(m.length<3) return null;
+  let y=+m[2]; if(y<100) y+=2000;
+  const [hh,mm]=(t||'12:00').split(':').map(Number);
+  return new Date(y,+m[1]-1,+m[0],hh||0,mm||0);
+}
+function num(x){const v=parseFloat(x);return isFinite(v)?v:NaN;}
+function implied(h,d,a){
+  if(!(h>1&&d>1&&a>1)) return null;
+  const s=1/h+1/d+1/a; return [1/h/s,1/d/s,1/a/s];
+}
+// played matches with bet365 odds, sorted by date
+function toPlayed(rows){
+  return rows.map(r=>{
+    const date=parseDate(r.Date,r.Time); if(!date||!r.HomeTeam) return null;
+    const hg=num(r.FTHG),ag=num(r.FTAG); if(isNaN(hg)||isNaN(ag)) return null;
+    const oh=num(r.B365H),od=num(r.B365D),oa=num(r.B365A);
+    const p=implied(oh,od,oa);
+    return {date,home:r.HomeTeam,away:r.AwayTeam,hg,ag,p,o:p?[oh,od,oa]:null};
+  }).filter(Boolean).sort((a,b)=>a.date-b.date);
+}
+function mean(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN;}
+function buildTeamStats(prevPlayed,curPlayed){
+  const all=prevPlayed.concat(curPlayed), T={};
+  const get=t=>T[t]||(T[t]={games:[],home:[],away:[],prevHome:[],prevAway:[]});
+  for(const m of all){
+    const isPrev=prevPlayed.includes(m);
+    const hp=m.hg>m.ag?3:m.hg==m.ag?1:0, ap=m.hg<m.ag?3:m.hg==m.ag?1:0;
+    const H=get(m.home),A=get(m.away);
+    H.games.push(hp); A.games.push(ap);
+    H.home.push(m.hg-m.ag); A.away.push(m.ag-m.hg);
+    // residual: actual win minus bet365 implied win probability
+    const resH=m.p?((m.hg>m.ag?1:0)-m.p[0]):null, resA=m.p?((m.ag>m.hg?1:0)-m.p[2]):null;
+    H.resH=(H.resH||[]); A.resA=(A.resA||[]);
+    if(resH!==null){H.resH.push(resH);A.resA.push(resA);}
+    if(isPrev&&m.p){H.prevHome.push(m.p[0]);A.prevAway.push(m.p[2]);}
+  }
+  return T;
+}
+const FEATURES=['P(1)','P(X)','P(2)','Form H','Form A','GD home','GD away','Last-yr P(1) H','Last-yr P(2) A','Value resid H','Value resid A'];
+function matchFeatures(fx,T){
+  const p=implied(num(fx.B365H),num(fx.B365D),num(fx.B365A)); if(!p) return null;
+  const h=T[fx.HomeTeam],a=T[fx.AwayTeam];
+  const fm=g=>g&&g.games.length?mean(g.games.slice(-6)):1.35;
+  const gd=l=>l&&l.length?mean(l.slice(-8)):0;
+  const pr=(l,d)=>l&&l.length?mean(l):d;
+  const rs=l=>l&&l.length?mean(l.slice(-15)):0;
+  return [p[0],p[1],p[2],fm(h),fm(a),gd(h&&h.home),gd(a&&a.away),
+          pr(h&&h.prevHome,p[0]),pr(a&&a.prevAway,p[2]),rs(h&&h.resH),rs(a&&a.resA)];
+}
+function standardize(X){
+  const n=X.length,d=X[0].length,mu=[],sd=[];
+  for(let j=0;j<d;j++){const c=X.map(r=>r[j]);const m=mean(c);const s=Math.sqrt(mean(c.map(v=>(v-m)**2)))||1;mu.push(m);sd.push(s);}
+  return {Z:X.map(r=>r.map((v,j)=>(v-mu[j])/sd[j])),mu,sd};
+}
+function jacobi(A){ // symmetric eigen-decomposition
+  const n=A.length; A=A.map(r=>r.slice());
+  const V=Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>i==j?1:0));
+  for(let sweep=0;sweep<60;sweep++){
+    let off=0;for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)off+=A[i][j]**2;
+    if(off<1e-18)break;
+    for(let p=0;p<n-1;p++)for(let q=p+1;q<n;q++){
+      if(Math.abs(A[p][q])<1e-15)continue;
+      const th=(A[q][q]-A[p][p])/(2*A[p][q]);
+      const t=Math.sign(th||1)/(Math.abs(th)+Math.sqrt(th*th+1));
+      const c=1/Math.sqrt(t*t+1),s=t*c;
+      for(let k=0;k<n;k++){const akp=A[k][p],akq=A[k][q];A[k][p]=c*akp-s*akq;A[k][q]=s*akp+c*akq;}
+      for(let k=0;k<n;k++){const apk=A[p][k],aqk=A[q][k];A[p][k]=c*apk-s*aqk;A[q][k]=s*apk+c*aqk;}
+      for(let k=0;k<n;k++){const vkp=V[k][p],vkq=V[k][q];V[k][p]=c*vkp-s*vkq;V[k][q]=s*vkp+c*vkq;}
+    }
+  }
+  const vals=A.map((r,i)=>r[i]);
+  const idx=vals.map((v,i)=>i).sort((a,b)=>vals[b]-vals[a]);
+  return {vals:idx.map(i=>vals[i]),vecs:idx.map(i=>V.map(r=>r[i]))}; // vecs[k] = k-th eigenvector
+}
+function pca(X){
+  const {Z}=standardize(X),n=Z.length,d=Z[0].length;
+  const C=Array.from({length:d},(_,i)=>Array.from({length:d},(_,j)=>{let s=0;for(let k=0;k<n;k++)s+=Z[k][i]*Z[k][j];return s/Math.max(1,n-1);}));
+  const {vals,vecs}=jacobi(C);
+  const tot=vals.reduce((a,b)=>a+Math.max(b,0),0)||1;
+  const ratio=vals.map(v=>Math.max(v,0)/tot);
+  let k=0,cum=0;while(k<d&&(cum<0.85||k<2)&&k<5){cum+=ratio[k];k++;}
+  k=Math.min(k,d);
+  const scores=Z.map(r=>vecs.slice(0,k).map(v=>v.reduce((s,w,j)=>s+w*r[j],0)));
+  return {scores,ratio,k,loadings:vecs};
+}
+function kmeans(P,K){
+  const n=P.length; K=Math.min(K,n); const d=P[0].length;
+  const order=P.map((_,i)=>i).sort((a,b)=>P[a][0]-P[b][0]);
+  let C=Array.from({length:K},(_,c)=>P[order[Math.floor((c+0.5)*n/K)]].slice());
+  let lab=new Array(n).fill(0);
+  for(let it=0;it<100;it++){
+    let ch=false;
+    for(let i=0;i<n;i++){
+      let b=0,bd=1e18;
+      for(let c=0;c<K;c++){let s=0;for(let j=0;j<d;j++)s+=(P[i][j]-C[c][j])**2;if(s<bd){bd=s;b=c;}}
+      if(lab[i]!==b){lab[i]=b;ch=true;}
+    }
+    C=C.map((cen,c)=>{const m=P.filter((_,i)=>lab[i]===c);return m.length?cen.map((_,j)=>mean(m.map(r=>r[j]))):cen;});
+    if(!ch)break;
+  }
+  return {lab,K};
+}
+// map clusters -> 1 / X / 2 using each cluster's average home edge in original feature space
+function suggest(F,lab,K){
+  const edge=c=>{const m=F.filter((_,i)=>lab[i]===c);return m.length?mean(m.map(r=>(r[0]-r[2])+0.15*(r[3]-r[4])/3)):0;};
+  const out={};
+  for(let c=0;c<K;c++){const e=edge(c);out[c]={edge:e,pick:e>0.10?'1':e<-0.10?'2':'X'};}
+  return out;
+}
+function analyse(fixtures,T){
+  const items=[];
+  for(const fx of fixtures){const f=matchFeatures(fx,T);if(f&&f.every(isFinite))items.push({fx,f});}
+  if(items.length<3) return {items,error:'Need at least 3 upcoming matches with bet365 odds in the window.'};
+  const F=items.map(i=>i.f), P=pca(F);
+  const km=kmeans(P.scores,3), map=suggest(F,km.lab,km.K);
+  items.forEach((it,i)=>{it.pc=P.scores[i];it.cluster=km.lab[i];it.pick=map[km.lab[i]].pick;it.p=[it.f[0],it.f[1],it.f[2]];});
+  return {items,pca:P,map,k:km.K};
+}
+
+/* ---- odds-only PCA + nearest-neighbour vote on past results ---- */
+function oddsVec(o){return [o[0],o[1],o[2]];} // the three bet365 odds as they are: 1, X, 2
+const impliedP=o=>{const a=1/o[0],b=1/o[1],c=1/o[2],t=a+b+c;return [a/t,b/t,c/t];};
+function pcaFit(X,target){
+  const st=standardize(X),Z=st.Z,n=Z.length,d=Z[0].length;
+  const C=Array.from({length:d},(_,i)=>Array.from({length:d},(_,j)=>{let s=0;for(let k=0;k<n;k++)s+=Z[k][i]*Z[k][j];return s/Math.max(1,n-1);}));
+  const {vals,vecs}=jacobi(C);
+  const tot=vals.reduce((a,b)=>a+Math.max(b,0),0)||1,ratio=vals.map(v=>Math.max(v,0)/tot);
+  let k=0,cum=0;while(k<d&&(cum<target||k<2)&&k<3){cum+=ratio[k];k++;}
+  const model={mu:st.mu,sd:st.sd,vecs:vecs.slice(0,k),k,ratio,loadings:vecs};
+  model.scores=Z.map(z=>model.vecs.map(v=>v.reduce((s,w,j)=>s+w*z[j],0)));
+  return model;
+}
+function pcaProject(m,x){const z=x.map((v,j)=>(v-m.mu[j])/m.sd[j]);return m.vecs.map(v=>v.reduce((s,w,j)=>s+w*z[j],0));}
+function knnVote(scores,lab,q,K,mode){
+  const d=scores.map((r,i)=>[Math.sqrt(r.reduce((s,v,j)=>s+(v-q[j])**2,0)),i]).sort((a,b)=>a[0]-b[0]).slice(0,K);
+  // score of each neighbour: +1 (1), 0 (X), -1 (2); weighted average = sum(w*score)/sum(w)
+  const cnt=[0,0,0],sc=[1,0,-1];
+  let num=0,den=0;
+  for(const [dist,i] of d){
+    cnt[lab[i]]++;
+    const w=mode==='dist'?dist:1/(dist+0.05);
+    num+=w*sc[lab[i]];den+=w;
+  }
+  if(!(den>0)){num=d.reduce((a,x)=>a+sc[lab[x[1]]],0);den=d.length;}
+  const avg=num/den,share=cnt.map(c=>c/d.length);
+  const pick=avg>=0.5?'1':avg<=-0.5?'2':'X';
+  return {cnt,share,avg,pick,conf:Math.abs(avg),nearest:d.map(x=>x[1]),meanDist:mean(d.map(x=>x[0]))};
+}
+function analyseKNN(fixtures,past,K,target,mode,equal){
+  const tr=past.filter(m=>m.o&&m.o.every(v=>v>1));
+  const up=fixtures.filter(f=>num(f.B365H)>1&&num(f.B365D)>1&&num(f.B365A)>1);
+  if(tr.length<30)return {items:[],error:'Need at least 30 past games with odds to compare against (found '+tr.length+').'};
+  if(!up.length)return {items:[],error:'No upcoming games with odds in this window.'};
+  const model=splitFit(tr.map(m=>oddsVec(m.o)),equal);
+  const lab=tr.map(m=>m.hg>m.ag?0:m.hg==m.ag?1:2);
+  const items=up.map(f=>{
+    const o=[num(f.B365H),num(f.B365D),num(f.B365A)],pc=model.project(oddsVec(o)),v=knnVote(model.scores,lab,pc,Math.min(K,tr.length),mode);
+    return {fx:f,pc,o,...v};
+  });
+  return {items,past:tr,lab,model,K};
+}
+
+/* ---- x = the first odd (kept as it is), y = first principal component of the second and third odds ---- */
+function splitFit(P,equal){
+  const n=P.length,mean1=a=>a.reduce((s,v)=>s+v,0)/a.length;
+  const c0=P.map(r=>r[0]),mu0=mean1(c0),sd0=Math.sqrt(mean1(c0.map(v=>(v-mu0)**2)))||1;
+  const cx=P.map(r=>r[1]),c2=P.map(r=>r[2]),mx=mean1(cx),m2=mean1(c2);
+  const sx=Math.sqrt(mean1(cx.map(v=>(v-mx)**2)))||1,s2=Math.sqrt(mean1(c2.map(v=>(v-m2)**2)))||1;
+  const Z=P.map(r=>[(r[1]-mx)/sx,(r[2]-m2)/s2]);                    // PCA on the standardised second and third odds
+  const cov=(i,j)=>Z.reduce((s,z)=>s+z[i]*z[j],0)/Math.max(1,n-1);
+  const {vals,vecs}=jacobi([[cov(0,0),cov(0,1)],[cov(1,0),cov(1,1)]]);
+  let v=vecs[0];if(v[1]<0)v=[-v[0],-v[1]];                           // orient: larger y = longer price for 2
+  const ev=Math.max(vals[0],1e-9),kept=Math.max(vals[0],0)/(Math.max(vals[0],0)+Math.max(vals[1],0)||1);
+  const model={k:2,kept,mu0,sd0,mx,m2,sx,s2,v,ev,equal:!!equal,sdY:Math.sqrt(ev)};
+  model.project=r=>{const y=v[0]*(r[1]-mx)/sx+v[1]*(r[2]-m2)/s2;
+    return equal?[(r[0]-mu0)/sd0,y/Math.sqrt(ev)]:[r[0],y];};          // default: x is literally the first odd
+  model.scores=P.map(model.project);
+  return model;
+}
+function seasonCode(now){const y=now.getMonth()>=6?now.getFullYear():now.getFullYear()-1;const f=n=>String(n%100).padStart(2,'0');return [f(y)+f(y+1),f(y-1)+f(y)];}
+/*ENDCORE*/
+
+/* ---------- UI ---------- */
+const $=id=>document.getElementById(id);
+let store={cur:null,prev:null,fix:null};
+function setStatus(s){$('status').textContent=s;}
+
+const SRC='https://www.football-data.co.uk/';
+const RELAYS=[u=>u,
+  u=>'https://corsproxy.io/?url='+encodeURIComponent(u),
+  u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
+  u=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u),
+  u=>'https://r.jina.ai/'+u];
+function cleanRelay(t){const i=t.indexOf('Markdown Content:');return (t.startsWith('Title:')&&i>=0)?t.slice(i+17).replace(/^\s*\n/,''):t;}
+let goodRelay=0;
+async function readBody(r,onP){
+  const total=+r.headers.get('content-length')||0;
+  if(!r.body||!r.body.getReader){onP(0.5);const t=await r.text();onP(1);return t;}
+  const rd=r.body.getReader(),dec=new TextDecoder();let got=0,txt='';
+  for(;;){const {done,value}=await rd.read();if(done)break;got+=value.length;txt+=dec.decode(value,{stream:true});
+    onP(total?Math.min(0.98,got/total):Math.min(0.9,0.2+got/200000));}
+  onP(1);return txt+dec.decode();
+}
+function cacheGet(k,ttl){try{const o=JSON.parse(localStorage.getItem('c:'+k)||'null');if(o&&(ttl===Infinity||Date.now()-o.t<ttl))return o.v;}catch(e){}return null;}
+function cacheStale(k){try{const o=JSON.parse(localStorage.getItem('c:'+k)||'null');return o?o.v:null;}catch(e){return null;}}
+function cacheSet(k,v){try{localStorage.setItem('c:'+k,JSON.stringify({t:Date.now(),v}));}catch(e){}}
+// race the direct request and every relay at once; first valid CSV wins, the rest are aborted
+const RNAMES=['direct','corsproxy.io','allorigins','codetabs','jina'];
+async function getCSV(path,onP,ttl,noCache){
+  const hit=noCache?null:cacheGet(path,ttl);if(hit){onP(1);return hit;}
+  const url=path.startsWith('http')?path:SRC+path,ctls=[],best=[],errs=[];
+  const one=async(i)=>{
+    try{
+      const ctl=new AbortController();ctls.push(ctl);const to=setTimeout(()=>ctl.abort(),12000);
+      const r=await fetch(RELAYS[i](url),{signal:ctl.signal});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      let t=await readBody(r,v=>{best[i]=v;onP(Math.max(...best.filter(x=>x!==undefined)));});
+      clearTimeout(to);t=cleanRelay(t);
+      if(t.trim().startsWith('<')||t.length<200)throw new Error('not a data file');
+      return t;
+    }catch(e){errs[i]=RNAMES[i]+': '+(e.name==='AbortError'?'timeout':e.message);throw e;}
+  };
+  try{
+    onP(0.05);
+    const t=await Promise.any(RELAYS.map((_,i)=>one(i)));
+    ctls.forEach(c=>{try{c.abort();}catch(e){}});
+    if(!noCache)cacheSet(path,t);onP(1);return t;
+  }catch(e){
+    const st=cacheStale(path);if(st){onP(1);return st;}
+    throw new Error(path.split('/').pop()+' -> '+errs.filter(Boolean).join(' | '));
+  }
+}
+function setProg(f,txt){const p=$('prog');p.hidden=false;p.classList.remove('ind');$('progBar').style.width=(f*100).toFixed(0)+'%';if(txt)setStatus(txt);}
+const OF={E0:['england','1-premierleague'],E1:['england','2-championship'],D1:['deutschland','1-bundesliga'],SP1:['espana','1-liga'],I1:['italy','1-seriea'],F1:['france','1-ligue1']};
+
+
+/* =====================================================================
+   EUROPEAN CUPS (Champions / Europa / Conference League)
+   Self-contained: own data source (ESPN), own loader, own analysis call.
+   Nothing here is used by the football-data league path.
+   ===================================================================== */
+const CUPS=new Set(['CL','EL','UECL','SWE','NOR','FIN','HUN','CZE','GRC']);
+const CAL=new Set(['SWE','NOR','FIN']);      // spring-autumn seasons (calendar year)
+let ESPN_EURO=true;                           // only the European cups skip Sun/Mon/Fri in single-day mode
+/* ---------- European cups: ESPN public scoreboard (current season fixtures + results) ---------- */
+const ESPN={CL:'uefa.champions',EL:'uefa.europa',UECL:'uefa.europa.conf',
+  SWE:['swe.1'],NOR:['nor.1'],FIN:['fin.1'],HUN:['hun.1'],CZE:['cze.1'],GRC:['gre.cup']};   // lists = candidate ESPN codes, the first one ESPN answers is used
+async function espnSlug(lg){
+  const c=ESPN[lg];if(typeof c==='string')return c;
+  const k='slug:'+lg,hit=cacheGet(k,Infinity);if(hit)return hit;
+  for(const sl of c){
+    const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+sl+'/scoreboard?dates='+ymd(new Date());
+    let j=null;
+    try{j=await jfetch(url);}catch(e){try{j=JSON.parse(await getCSV(url,()=>{},0,true));}catch(e2){}}
+    if(j&&((Array.isArray(j.leagues)&&j.leagues.length)||Array.isArray(j.events))){cacheSet(k,sl);return sl;}
+  }
+  throw new Error('ESPN does not seem to offer this competition (codes tried: '+c.join(', ')+').');
+}
+const ymd=d=>d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+function parseESPN(txt){
+  let j;try{j=JSON.parse(txt);}catch(e){throw new Error('response is not JSON');}
+  return (j.events||[]).map(ev=>{
+    const c=(ev.competitions&&ev.competitions[0])||{},cp=c.competitors||[];
+    const h=cp.find(x=>x.homeAway==='home'),a=cp.find(x=>x.homeAway==='away');
+    if(!h||!a||!h.team||!a.team)return null;
+    const st=(ev.status&&ev.status.type)||(c.status&&c.status.type)||{};
+    const hg=parseInt(h.score),ag=parseInt(a.score);
+    const bad=/POSTPONED|CANCEL|ABANDON|SUSPEND|FORFEIT/i.test(st.name||'');
+    const played=st.state==='post'&&!bad&&isFinite(hg)&&isFinite(ag);
+    if(!played&&st.state==='post')return null;
+    return {id:ev.id,t:new Date(ev.date).getTime(),home:h.team.displayName||h.team.name,away:a.team.displayName||a.team.name,played,hg:played?hg:null,ag:played?ag:null};
+  }).filter(Boolean);
+}
+let espnDirectBad=false,espnBadSpan=Infinity,espnFails=0,espnLastCall=0;
+const espnNote=new Set();
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function espnGet(url){
+  if(!espnDirectBad){
+    for(let att=0;att<3;att++){                                              // a network error is usually ESPN throttling a burst: wait and retry, don't give up on direct access
+      const gap=espnLastCall+120-Date.now();espnLastCall=Date.now()+Math.max(0,gap);if(gap>0)await sleep(gap);   // ~8 requests/second at most
+      try{
+        const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),12000);
+        const r=await fetch(url,{signal:ctl.signal});clearTimeout(to);
+        if(r.status===400){const e=new Error('HTTP 400');e.bad=true;throw e;}   // ESPN rejected the request itself: relays would get the same answer
+        if(r.status===429){await sleep(1500*(att+1));continue;}
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        espnFails=0;return await r.text();
+      }catch(e){if(e.bad)throw e;await sleep(1200*(att+1));}
+    }
+    if(++espnFails>=8){espnDirectBad=true;}                                 // only after many consecutive failures switch to the relays
+    throw new Error('ESPN did not answer (blocked, throttled or offline)');
+  }
+  return getCSV(url,()=>{},0,true);
+}
+async function espnRange(slug,from,to,ttl){
+  const span=Math.round((to-from)/864e5)+1;
+  const key='espn:'+slug+':'+ymd(from)+'-'+ymd(to),hit=cacheGet(key,ttl);
+  if(hit)return hit;
+  const split=async()=>{                       // ask for two smaller windows instead
+    const mid=new Date(from.getTime()+Math.floor((span-1)/2)*864e5);
+    const [a,b]=await Promise.all([espnRange(slug,from,mid,ttl),espnRange(slug,new Date(mid.getTime()+864e5),to,ttl)]);
+    return a.concat(b);
+  };
+  if(span>1&&span>=espnBadSpan)return split();   // already learned that windows this long are refused
+  if(span===1&&espnBadSpan<Infinity&&![2,3,4,6].includes(from.getDay())&&ESPN_EURO)return []; // in single-day mode skip days without European matches (Sun, Mon, Fri)
+  const dates=span===1?ymd(from):ymd(from)+'-'+ymd(to);
+  const path=`/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${dates}`;
+  let txt;
+  try{txt=await espnGet('https://site.api.espn.com'+path);}
+  catch(e){
+    if(e.bad&&span>1){espnBadSpan=Math.min(espnBadSpan,span);return split();}
+    if(e.bad&&span===1){try{txt=await espnGet('https://site.web.api.espn.com'+path);espnNote.add('Single days only worked on the alternate ESPN host.');}catch(e2){throw e;}}
+    else throw e;
+  }
+  const ev=parseESPN(txt);
+  if(ev.length>=95&&span>2)return split();       // a capped response: ask again in halves
+  cacheSet(key,ev);return ev;
+}
+/* bet365 (and DraftKings fallback) 1X2 odds for one event, from ESPN's core odds endpoint */
+function toDec(v){
+  if(typeof v==='number')return v>1?v:NaN;
+  if(typeof v!=='string')return NaN;
+  const f=v.match(/^\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*$/);if(f)return 1+ +f[1]/+f[2];
+  const n=parseFloat(v);return n>1?n:NaN;
+}
+function amDec(x){x=+x;if(!isFinite(x)||x===0)return NaN;return x>0?1+x/100:1+100/Math.abs(x);}
+function parseOdds(txt){
+  let j;try{j=JSON.parse(txt);}catch(e){return null;}
+  const items=j.items||[];let dk=null;
+  for(const e of items){
+    const pr=e.provider||{},nm=String(pr.name||'');
+    if(/bet\s*365/i.test(nm)||String(pr.id)==='2000'){
+      const h=toDec(e.homeTeamOdds&&e.homeTeamOdds.odds&&e.homeTeamOdds.odds.value),
+            d=toDec(e.drawOdds&&(e.drawOdds.value!==undefined?e.drawOdds.value:(e.drawOdds.odds&&e.drawOdds.odds.value))),
+            a=toDec(e.awayTeamOdds&&e.awayTeamOdds.odds&&e.awayTeamOdds.odds.value);
+      if(h>1&&d>1&&a>1)return {o:[h,d,a],src:'b365'};
+    }
+    if(/draftkings/i.test(nm)||String(pr.id)==='100'){
+      const h=amDec(e.homeTeamOdds&&e.homeTeamOdds.moneyLine),d=amDec(e.drawOdds&&e.drawOdds.moneyLine),a=amDec(e.awayTeamOdds&&e.awayTeamOdds.moneyLine);
+      if(h>1&&d>1&&a>1)dk={o:[h,d,a],src:'dk'};
+    }
+  }
+  return dk;
+}
+async function eventOdds(slug,id,played){
+  const key='eo:'+slug+':'+id,hit=cacheGet(key,played?60*864e5:30*60e3);
+  if(hit!==null)return hit===0?null:hit;
+  const txt=await espnGet(`https://sports.core.api.espn.com/v2/sports/soccer/leagues/${slug}/events/${id}/competitions/${id}/odds`);
+  const r=parseOdds(txt);cacheSet(key,r||0);return r;
+}
+async function pool(list,n,fn){const q=list.slice();await Promise.all(Array.from({length:n},async()=>{for(let x;(x=q.shift());)await fn(x);}));}
+async function fetchCup(lg,startYear,days,onP){
+  const slug=await espnSlug(lg),now=new Date(),day0=new Date(now.getFullYear(),now.getMonth(),now.getDate()),end=new Date(now.getTime()+days*864e5);
+  const jobs=[];
+  const add=(from,to,ttl,tag)=>{for(let d=new Date(from);d<=to;d=new Date(d.getTime()+14*864e5)){const e=new Date(Math.min(d.getTime()+13*864e5,to.getTime()));jobs.push({from:new Date(d),to:e,ttl,tag});}};
+  const cal=CAL.has(lg),Y=now.getMonth()>=2?now.getFullYear():now.getFullYear()-1;      // calendar-year leagues: season = year Y
+  add(cal?new Date(Y-1,7,1):new Date(startYear-1,8,1),cal?new Date(Y-1,11,31):new Date(startYear,5,15),7*864e5,'prev');   // last season, rarely changes
+  add(cal?new Date(Y,0,1):new Date(startYear,8,1),new Date(day0.getTime()-864e5),20*60e3,'cur');                            // this season up to yesterday
+  add(day0,end,10*60e3,'cur');                                                           // today and the coming days
+  let done=0;const out={prev:[],cur:[]},errs=[];
+  await pool(jobs,3,async j=>{
+    if(espnFails>=8&&!out.cur.length&&!out.prev.length){errs.push('stopped: ESPN is not answering');return;}
+    try{out[j.tag].push(...await espnRange(slug,j.from,j.to,j.ttl));}catch(e){errs.push(ymd(j.from)+': '+e.message);}
+    onP(0.5*(++done/jobs.length),'matches');});
+  const dedupe=l=>{const m=new Map();l.forEach(x=>m.set(x.home+'|'+x.away+'|'+Math.floor(x.t/864e5),x));return [...m.values()].map(x=>({id:x.id,date:new Date(x.t),home:x.home,away:x.away,played:x.played,hg:x.hg,ag:x.ag}));};
+  const prev=dedupe(out.prev),cur=dedupe(out.cur);
+  // odds: every finished game (history) + the unplayed games inside the window
+  const need=prev.concat(cur).filter(m=>m.id&&(m.played||(m.date>=day0&&m.date<=end)));
+  let od=0,oerr=0;
+  await pool(need,8,async m=>{
+    try{const r=await eventOdds(slug,m.id,m.played);if(r){m.o=r.o;m.src=r.src;}}catch(e){oerr++;}
+    onP(0.5+0.5*(++od/need.length),'odds');});
+  return {prev,cur,errs,failed:errs.length,total:jobs.length,oddsFailed:oerr,oddsTotal:need.length};
+}
+
+function espnWhy(c){
+  const e=c.errs.join(' ');
+  if(!c.failed)return 'WHY: ESPN answered every request but has no matches for this competition in this period. ESPN probably does not cover this league (or the code I use for it is wrong), or the season has not started.';
+  if(/did not answer|Failed to fetch|timeout|HTTP 403|HTTP 429/i.test(e)&&c.failed>=c.total*0.8)
+    return 'WHY: your browser could not get any answer from ESPN. Likely causes: an ad-blocker, VPN, firewall or browser privacy extension blocking espn.com; ESPN throttling too many requests (wait a few minutes and try again); or no internet connection. The free relay services (corsproxy, allorigins, codetabs, jina) also refused or timed out, so there was no way around it.';
+  if(/HTTP 400/.test(e))return 'WHY: ESPN rejected the requests (HTTP 400). The league code the page uses for this competition is probably wrong or ESPN has no data for it.';
+  if(/HTTP 404/.test(e))return 'WHY: ESPN says this league code does not exist (HTTP 404).';
+  return 'WHY: ESPN returned errors for most requests – see the details below.';
+}
+async function cupGo(lg,days,startYear){
+  ESPN_EURO=['CL','EL','UECL'].includes(lg);
+  const title=$('league').selectedOptions[0].textContent;
+  try{
+    setProg(0,'Downloading fixtures and results from ESPN…');
+    const c=await fetchCup(lg,startYear,days,(f,ph)=>setProg(f,(ph==='odds'?'Downloading bet365 odds from ESPN… ':'Downloading fixtures and results from ESPN… ')+(f*100).toFixed(0)+'%'));
+    if(!c.cur.length&&!c.prev.length)throw new Error(espnWhy(c)+'\n\nTechnical details: '+c.failed+' of '+c.total+' requests failed.\n'+(espnBadSpan<Infinity?'ESPN refused date ranges of '+espnBadSpan+'+ days (HTTP 400). ':'')+[...espnNote].join(' ')+'\n'+c.errs.slice(0,3).join('\n')+'\nIf every request failed, an ad-blocker/VPN/firewall is probably blocking espn.com.');
+    setProg(1,'Download complete – analysing…');
+    const now=new Date(),day0=new Date(now.getFullYear(),now.getMonth(),now.getDate()),end=new Date(now.getTime()+days*864e5);
+    const byDate=(a,b)=>a.date-b.date;
+    const prevPlayed=c.prev.filter(m=>m.played).sort(byDate),curPlayed=c.cur.filter(m=>m.played).sort(byDate);
+    const stRowsCup=standings(curPlayed);
+    renderStandings(stRowsCup,title);
+    renderMatrix(curPlayed,stRowsCup,title);
+    renderGoals(curPlayed,stRowsCup,title);
+    setupScore(curPlayed,stRowsCup);
+    // history = finished games with real bookmaker odds; if too few, price every game with a goals model instead
+    let past=prevPlayed.concat(curPlayed).sort(byDate);
+    const realHist=past.filter(m=>m.o&&m.o.every(v=>v>1)),useReal=realHist.length>=30;
+    if(useReal)past=realHist;
+    else{const all=past;past=[];for(let i=60;i<all.length;i++){const p=poissonProbs([],all.slice(0,i))(all[i].home,all[i].away);past.push({...all[i],o:[1/(p[0]*1.06),1/(p[1]*1.06),1/(p[2]*1.06)]});}}
+    // upcoming games inside the window: real odds when ESPN has them, model estimate otherwise (marked ~)
+    const prob=poissonProbs(prevPlayed,curPlayed),fixtures=[];
+    for(const m of c.cur){
+      if(m.played||!(m.date>=day0&&m.date<=end))continue;
+      if(m.o)fixtures.push({date:m.date,HomeTeam:m.home,AwayTeam:m.away,est:false,B365H:m.o[0].toFixed(2),B365D:m.o[1].toFixed(2),B365A:m.o[2].toFixed(2)});
+      else{const p=prob(m.home,m.away);fixtures.push({date:m.date,HomeTeam:m.home,AwayTeam:m.away,est:true,B365H:(1/(p[0]*1.06)).toFixed(2),B365D:(1/(p[1]*1.06)).toFixed(2),B365A:(1/(p[2]*1.06)).toFixed(2)});}
+    }
+    fixtures.sort(byDate);
+    showMap(fixtures);
+    const realUp=fixtures.filter(f=>!f.est).length,b365n=realHist.filter(m=>m.src==='b365').length;
+    const info=(useReal
+      ?`Fixtures, results and odds from ESPN: ${realHist.length} of ${prevPlayed.length+curPlayed.length} past games have bookmaker odds (${b365n} Bet 365, the rest DraftKings); ${realUp} upcoming game(s) with real odds, ${fixtures.length-realUp} with model estimates (~). `
+      :`Fixtures and results from ESPN. Too few past games had bookmaker odds on ESPN (${realHist.length}), so ALL odds (past and upcoming) are model estimates (~), not bet365. `)
+      +(c.oddsTotal&&c.oddsFailed>c.oddsTotal*0.5?`ESPN's odds service did not answer for ${c.oddsFailed} of ${c.oddsTotal} games (it is blocked, throttled, or ESPN has no odds for this league yet – ESPN usually publishes bet365 odds only a day or two before kickoff). `:'')+(c.failed?`${c.failed} of ${c.total} date windows could not be loaded. `:'')+(espnBadSpan<Infinity?'ESPN refused date ranges of '+espnBadSpan+'+ days (HTTP 400), so shorter windows were used. ':'')+[...espnNote].join(' ')+' ';
+    const res=analyseKNN(fixtures,past,+$('knn').value,0,$('wmode').value,$('axscale').value==='equal');
+    res.estHist=!useReal;
+    if(res.error){renderUpcomingBasic(fixtures);setStatus(info+res.error);}
+    else{setStatus(info+`${res.items.length} upcoming matches compared with ${res.past.length} past games.`);render(res);}
+    setTimeout(()=>{$('prog').hidden=true;},600);
+  }catch(e){$('prog').hidden=true;setStatus('Could not download the data.\n'+e.message);}
+}
+/* ---------- Greek Cup and the other ESPN-only competitions are handled by cupGo above ---------- */
+$('go').onclick=async()=>{
+  const lg=$('league').value, days=+$('days').value, [cs,ps]=seasonCode(new Date());
+  $('go').disabled=true;['stCard','mxCard','gcCard','scCard','outCard','tblCard','mapCard'].forEach(i=>$(i).hidden=true);
+  if(CUPS.has(lg)){await cupGo(lg,days,+('20'+cs.slice(0,2)));$('go').disabled=false;return;}
+  const N=5,prog=new Array(N).fill(0),names=['football-data this season','football-data last season','football-data fixtures','schedule & scores','schedule last season'],errs=[];
+  const upd=()=>{const f=prog.reduce((a,b)=>a+b,0)/N;
+    setProg(f,'Downloading '+names.filter((_,i)=>prog[i]<1).join(', ')+'… '+(f*100).toFixed(0)+'%');};
+  const mk=i=>v=>{prog[i]=v;upd();};
+  const fail=i=>e=>{prog[i]=1;errs.push(e.message);upd();return '';};
+  const startYear=+('20'+cs.slice(0,2));
+  const ofUrl=y=>{const o=OF[lg];return o?`https://raw.githubusercontent.com/openfootball/${o[0]}/master/${y}-${String(y+1).slice(2)}/${o[1]}.txt`:null;};
+  const opt=(i,u,ttl)=>u?getCSV(u,mk(i),ttl).catch(fail(i)):(prog[i]=1,Promise.resolve(''));
+  try{
+    upd();
+    const [cur,prev,fix,ofc,ofp]=await Promise.all([
+      getCSV(`mmz4281/${cs}/${lg}.csv`,mk(0),30*60e3).catch(fail(0)),
+      getCSV(`mmz4281/${ps}/${lg}.csv`,mk(1),30*864e5).catch(fail(1)),
+      getCSV('fixtures.csv',mk(2),30*60e3).catch(fail(2)),
+      opt(3,ofUrl(startYear),30*60e3),opt(4,ofUrl(startYear-1),30*864e5)]);
+    if(!(cur&&prev)&&!ofc&&!ofp){
+      throw new Error('No data source reachable for this league.\n'+errs.join('\n')+(OF[lg]?'':'\n(This league has no schedule fallback.)'));
+    }
+    setProg(1,'Download complete – analysing…');
+    store={cur,prev,fix};
+    run(cur,prev,fix,lg,days,ofc,startYear,ofp,errs);
+    setTimeout(()=>{$('prog').hidden=true;},600);
+  }catch(e){
+    $('prog').hidden=true;
+    setStatus('Could not download the data.\n'+e.message);
+  }finally{$('go').disabled=false;}
+};
+function standings(played){
+  const t={};
+  const g=n=>t[n]||(t[n]={n,p:0,w:0,d:0,l:0,gf:0,ga:0,pts:0,f:[]});
+  for(const m of played){
+    const H=g(m.home),A=g(m.away);H.p++;A.p++;H.gf+=m.hg;H.ga+=m.ag;A.gf+=m.ag;A.ga+=m.hg;
+    if(m.hg>m.ag){H.w++;A.l++;H.pts+=3;H.f.push('W');A.f.push('L');}
+    else if(m.hg<m.ag){A.w++;H.l++;A.pts+=3;H.f.push('L');A.f.push('W');}
+    else{H.d++;A.d++;H.pts++;A.pts++;H.f.push('D');A.f.push('D');}
+  }
+  return Object.values(t).sort((a,b)=>b.pts-a.pts||(b.gf-b.ga)-(a.gf-a.ga)||b.gf-a.gf||a.n.localeCompare(b.n));
+}
+function renderStandings(rows,title){
+  $('stCard').hidden=false;$('stTitle').textContent=title+' – league table';
+  let h='<tr><th>#</th><th>Team</th><th class="n">P</th><th class="n">W</th><th class="n">D</th><th class="n">L</th><th class="n">GF</th><th class="n">GA</th><th class="n">GD</th><th class="n">Pts</th><th>Last 5</th></tr>';
+  rows.forEach((r,i)=>{h+=`<tr${i<4?' class="zone"':''}><td>${i+1}</td><td>${esc(r.n)}</td><td class="n">${r.p}</td><td class="n">${r.w}</td><td class="n">${r.d}</td><td class="n">${r.l}</td><td class="n">${r.gf}</td><td class="n">${r.ga}</td><td class="n">${r.gf-r.ga>0?'+':''}${r.gf-r.ga}</td><td class="n"><b>${r.pts}</b></td><td class="form">${r.f.slice(-5).map(x=>`<span class="f${x}">${x}</span>`).join('')}</td></tr>`;});
+  $('stTbl').innerHTML=rows.length?h:'<tr><td>No matches played yet this season.</td></tr>';
+}
+
+/* ---------- results matrix, goals matrix, scoreline matrix ---------- */
+const mxState={res:{}};
+function fmtDay(d){return d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});}
+function oddsTxt(m){return m.o?`odds 1: ${m.o[0].toFixed(2)} · X: ${m.o[1].toFixed(2)} · 2: ${m.o[2].toFixed(2)}`:'odds not available';}
+function oddsHtml(m){ // the odds of the outcome that happened are in bold
+  if(!m.o)return '<span class="note">odds not available</span>';
+  const w=m.hg>m.ag?0:m.hg==m.ag?1:2;
+  return ['1','X','2'].map((l,i)=>`<span class="note">${l}:</span> ${i===w?'<b>':''}${m.o[i].toFixed(2)}${i===w?'</b>':''}`).join(' &nbsp;');
+}
+function gameLine(m,team){
+  const k=m.hg>m.ag?'1':m.hg<m.ag?'2':'X';
+  const mine=team&&team!=='*'&&(m.home===team||m.away===team);
+  return `<div class="g"><span class="d">${fmtDay(m.date)}</span><span class="pill p${k}">${m.hg}-${m.ag}</span><span>${esc(m.home)} – ${esc(m.away)}${mine?` <span class="note">(${m.home===team?'home':'away'})</span>`:''}</span><span>${oddsHtml(m)}</span></div>`;
+}
+function abbrevs(names){
+  const out={},used=new Set();
+  for(const n of names){
+    const w=n.replace(/[^A-Za-z0-9 ]/g,'').trim().replace(/\s+/g,'');
+    let len=3,a=w.slice(0,len).toUpperCase();
+    while(used.has(a)&&len<w.length){len++;a=w.slice(0,len).toUpperCase();}
+    used.add(a);out[n]=a;
+  }
+  return out;
+}
+function renderMatrix(played,table,title){
+  $('mxDetail').hidden=true;
+  if(!table.length){$('mxCard').hidden=true;return;}
+  $('mxCard').hidden=false;$('mxTitle').textContent=title+' – results matrix';
+  const teams=table.map(r=>r.n),ab=abbrevs(teams),res={};
+  for(const m of played)(res[m.home+'|'+m.away]||(res[m.home+'|'+m.away]=[])).push(m);
+  mxState.res=res;
+  let h='<tr><th></th>'+teams.map(t=>`<th class="col" title="${esc(t)}">${esc(ab[t])}</th>`).join('')+'</tr>';
+  for(const r of teams){
+    h+=`<tr><th class="rowh">${esc(r)}</th>`;
+    for(const c of teams){
+      if(r===c){h+='<td class="mself"></td>';continue;}
+      const gs=res[r+'|'+c];
+      if(!gs){h+='<td class="mnone" data-nr="'+esc(r)+'" data-nc="'+esc(c)+'" title="'+esc(r)+' – '+esc(c)+': not played">·</td>';continue;}
+      const m=gs[gs.length-1],k=m.hg>m.ag?'m1':m.hg<m.ag?'m2':'mX';
+      const tip=gs.map(g=>fmtDay(g.date)+'\n'+r+' '+g.hg+'-'+g.ag+' '+c+'\n'+oddsTxt(g)).join('\n\n');
+      h+=`<td class="${k}" data-r="${esc(r)}" data-c="${esc(c)}" style="cursor:pointer" title="${esc(tip)}">${m.hg}-${m.ag}${gs.length>1?'*':''}</td>`;
+    }
+    h+='</tr>';
+  }
+  $('mxTbl').innerHTML=h;
+}
+$('mxTbl').onclick=e=>{
+  const up=e.target.closest('td.mup');if(up){selectUpcoming(+up.dataset.ui);return;}
+  const td=e.target.closest('td[data-r]');if(!td)return;
+  const gs=mxState.res[td.dataset.r+'|'+td.dataset.c];if(!gs)return;
+  document.querySelectorAll('#mxTbl td.sel').forEach(t=>t.classList.remove('sel'));td.classList.add('sel');
+  const box=$('mxDetail');box.hidden=false;box.innerHTML='<h3>Game details</h3>'+gs.map(m=>gameLine(m)).join('');
+};
+/* goals matrix: home / away goals scored, conceded and averages */
+function renderGoals(played,table,title){
+  if(!table.length){$('gcCard').hidden=true;return;}
+  $('gcCard').hidden=false;$('gcTitle').textContent=title+' – goals matrix';
+  const S={};table.forEach(r=>S[r.n]={hp:0,hf:0,ha:0,ap:0,af:0,aa:0});
+  for(const m of played){
+    const H=S[m.home],A=S[m.away];if(!H||!A)continue;
+    H.hp++;H.hf+=m.hg;H.ha+=m.ag;A.ap++;A.af+=m.ag;A.aa+=m.hg;
+  }
+  const av=(x,p)=>p?(x/p).toFixed(2):'–';
+  const row=(name,s,cls)=>`<tr class="${cls||''}"><td class="tn">${esc(name)}</td>
+    <td class="sep">${s.hp}</td><td>${s.hf}</td><td>${s.ha}</td><td><b>${av(s.hf,s.hp)}</b></td><td><b>${av(s.ha,s.hp)}</b></td>
+    <td class="sep">${s.ap}</td><td>${s.af}</td><td>${s.aa}</td><td><b>${av(s.af,s.ap)}</b></td><td><b>${av(s.aa,s.ap)}</b></td>
+    <td class="sep"><b>${av(s.hf+s.af,s.hp+s.ap)}</b></td><td><b>${av(s.ha+s.aa,s.hp+s.ap)}</b></td></tr>`;
+  let h='<tr><th class="tn"></th><th class="grp sep" colspan="5">Home</th><th class="grp sep" colspan="5">Away</th><th class="grp sep" colspan="2">Overall avg</th></tr>'+
+    '<tr><th class="tn">Team</th><th class="sep">P</th><th>GF</th><th>GA</th><th>Avg GF</th><th>Avg GA</th><th class="sep">P</th><th>GF</th><th>GA</th><th>Avg GF</th><th>Avg GA</th><th class="sep">Avg GF</th><th>Avg GA</th></tr>';
+  const tot={hp:0,hf:0,ha:0,ap:0,af:0,aa:0};
+  for(const r of table){const s=S[r.n];h+=row(r.n,s);for(const k in tot)tot[k]+=s[k];}
+  h+=row('All teams average',tot,'lg');
+  $('gcTbl').innerHTML=h;
+}
+/* scoreline matrix for a chosen team, with click-through to the games */
+const scState={played:[],grid:null};
+function setupScore(played,table){
+  scState.played=played;
+  const sel=$('scTeam'),prev=sel.value;
+  sel.innerHTML='<option value="*">All teams</option>'+table.map(r=>`<option value="${esc(r.n)}">${esc(r.n)}</option>`).join('');
+  if([...sel.options].some(o=>o.value===prev))sel.value=prev;
+  $('scCard').hidden=!played.length;
+  renderScore();
+}
+function renderScore(){
+  const team=$('scTeam').value,ven=$('scVen').value;
+  $('scDetail').hidden=true;
+  const games=scState.played.filter(m=>team==='*'?true:
+    ven==='home'?m.home===team:ven==='away'?m.away===team:(m.home===team||m.away===team));
+  let mx=4;for(const m of games)mx=Math.max(mx,m.hg,m.ag);
+  const grid=Array.from({length:mx+1},()=>Array.from({length:mx+1},()=>[]));
+  for(const m of games)grid[m.hg][m.ag].push(m);
+  scState.grid=grid;
+  const top=Math.max(1,...grid.flat().map(c=>c.length));
+  let h=`<tr><th class="axis"></th><th class="axis" colspan="${mx+1}">Away goals →</th></tr><tr><th class="axis">Home goals ↓</th>`;
+  for(let a=0;a<=mx;a++)h+=`<th>${a}</th>`;
+  h+='</tr>';
+  for(let hg=0;hg<=mx;hg++){
+    h+=`<tr><th>${hg}</th>`;
+    for(let ag=0;ag<=mx;ag++){
+      const c=grid[hg][ag];
+      if(!c.length){h+='<td>·</td>';continue;}
+      const pct=20+60*c.length/top;
+      const tip=c.slice(0,10).map(m=>`${fmtDay(m.date)}: ${m.home} ${m.hg}-${m.ag} ${m.away} (${oddsTxt(m)})`).join('\n')+(c.length>10?'\n…':'');
+      h+=`<td class="has" data-h="${hg}" data-a="${ag}" style="background:color-mix(in srgb,var(--acc) ${pct.toFixed(0)}%,transparent)" title="${esc(tip)}">${c.length}</td>`;
+    }
+    h+='</tr>';
+  }
+  $('scTbl').innerHTML=games.length?h:'<tr><td style="width:auto">No games found.</td></tr>';
+}
+function showScoreDetail(hg,ag){
+  const c=(scState.grid[hg]||[])[ag]||[],team=$('scTeam').value;
+  document.querySelectorAll('#scTbl td.sel').forEach(t=>t.classList.remove('sel'));
+  const td=document.querySelector(`#scTbl td[data-h="${hg}"][data-a="${ag}"]`);if(td)td.classList.add('sel');
+  const box=$('scDetail');box.hidden=false;
+  let h=`<h3>${hg}-${ag} · ${c.length} game${c.length==1?'':'s'}${team==='*'?'':' involving '+esc(team)}</h3>`;
+  for(const m of c.slice().sort((a,b)=>a.date-b.date))h+=gameLine(m,team);
+  box.innerHTML=h;
+}
+$('scTeam').onchange=renderScore;$('scVen').onchange=renderScore;
+$('scTbl').onclick=e=>{const td=e.target.closest('td.has');if(td)showScoreDetail(+td.dataset.h,+td.dataset.a);};
+
+function renderUpcomingBasic(fixtures){
+  $('tblCard').hidden=false;
+  const fmt=d=>d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  let h='<tr><th>Date</th><th>Match</th><th class="n">1</th><th class="n">X</th><th class="n">2</th></tr>';
+  for(const f of fixtures)h+=`<tr><td>${fmt(f.date)}</td><td>${esc(f.HomeTeam)} – ${esc(f.AwayTeam)}</td><td class="n">${f.B365H||'–'}</td><td class="n">${f.B365D||'–'}</td><td class="n">${f.B365A||'–'}</td></tr>`;
+  $('tbl').innerHTML=fixtures.length?h:'<tr><td>No fixtures found in this window.</td></tr>';
+}
+/* openfootball schedule parser: returns unplayed matches */
+function parseOpenFootball(txt,startYear){
+  const MO={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+  const out=[];let y=startYear,lastM=-1,date=null,tm=[15,0];
+  const clean=t=>t.replace(/\s*([A-Z]{2,3})\s*$/,'').trim();
+  for(const raw of txt.split('\n')){
+    if(!raw.trim()||raw.trim()[0]==='#'||raw.trim()[0]==='=')continue;
+    let m=raw.match(/^\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+([A-Z][a-z]{2})\s+(\d{1,2})(?:\s+(\d{4}))?\s*$/);
+    if(m){const mo=MO[m[1]];if(m[3])y=+m[3];else if(lastM>=6&&mo<lastM-3)y++;lastM=mo;date={y,mo,d:+m[2]};tm=[15,0];continue;}
+    if(!date)continue;
+    m=raw.match(/^\s+(?:(\d{1,2})[:.](\d{2})\s+)?(.+?)\s+v\s+(.+?)(?:\s+(\d+)-(\d+)\b.*)?\s*$/);
+    if(!m)continue;
+    if(m[1]!==undefined)tm=[+m[1],+m[2]]; // later games in the same slot have no time: reuse the last one
+    const played=m[5]!==undefined;
+    out.push({date:new Date(date.y,date.mo,date.d,tm[0],tm[1]),home:clean(m[3]),away:clean(m[4]),played,hg:played?+m[5]:null,ag:played?+m[6]:null});
+  }
+  return out;
+}
+const ofPlayed=list=>list.filter(m=>m.played).map(m=>({date:m.date,home:m.home,away:m.away,hg:m.hg,ag:m.ag,p:null})).sort((a,b)=>a.date-b.date);
+const ALIAS={'manchester united':'man united','manchester city':'man city','newcastle united':'newcastle','nottingham forest':'nott m forest','tottenham hotspur':'tottenham','wolverhampton wanderers':'wolves','brighton hove albion':'brighton','west ham united':'west ham','leeds united':'leeds','internazionale milano':'inter','atletico de madrid':'ath madrid','atletico madrid':'ath madrid','athletic club':'ath bilbao','bayern munchen':'bayern munich','borussia monchengladbach':'m gladbach','eintracht frankfurt':'ein frankfurt','bayer 04 leverkusen':'leverkusen','bayer leverkusen':'leverkusen','borussia dortmund':'dortmund','paris saint germain':'paris sg','olympique marseille':'marseille','olympique lyonnais':'lyon','real betis':'betis','celta de vigo':'celta','rayo vallecano':'vallecano','real sociedad':'sociedad','deportivo alaves':'alaves','sheffield wednesday':'sheffield weds','queens park rangers':'qpr','west bromwich albion':'west brom'};
+function normName(s){
+  s=s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' ').replace(/[^a-z0-9 ]/g,' ');
+  s=s.replace(/\b(fc|afc|cf|sc|ac|as|ssc|us|fk|ud|cd|sv|vfb|vfl|tsg|fsv|bsc|calcio|club|real club|1907|1899|1846|1893|1860|04|05|09)\b/g,' ').replace(/\s+/g,' ').trim();
+  return ALIAS[s]||s;
+}
+function matchTeam(name,known){
+  const n=normName(name);let best=null,bs=0;
+  for(const k of known){
+    const kn=normName(k);let sc=0;
+    if(kn===n)sc=100;
+    else if(kn.startsWith(n)||n.startsWith(kn))sc=80;
+    else if(kn.includes(n)||n.includes(kn))sc=65;
+    else{const a=new Set(n.split(' ')),b=kn.split(' ');const inter=b.filter(x=>a.has(x)).length;sc=inter?60*inter/Math.max(a.size,b.length):(n.slice(0,4)===kn.slice(0,4)?30:0);}
+    if(sc>bs){bs=sc;best=k;}
+  }
+  return bs>=30?best:name;
+}
+/* Poisson model for 1X2 when no bet365 odds exist yet */
+function poissonProbs(prevP,curP){
+  const rows=[];prevP.forEach(m=>rows.push([m,0.5]));curP.forEach(m=>rows.push([m,1]));
+  let wH=0,wA=0,W=0;const T={};
+  const g=n=>T[n]||(T[n]={gf:0,ga:0,w:0});
+  for(const [m,w] of rows){wH+=m.hg*w;wA+=m.ag*w;W+=w;
+    const H=g(m.home),A=g(m.away);H.gf+=m.hg*w;H.ga+=m.ag*w;H.w+=w;A.gf+=m.ag*w;A.ga+=m.hg*w;A.w+=w;}
+  const mh=(wH/W)||1.5,ma=(wA/W)||1.2,avg=(mh+ma)/2,K=4;
+  const att=t=>{const x=T[t];return x?(x.gf+K*avg)/(x.w+K)/avg:1;};
+  const def=t=>{const x=T[t];return x?(x.ga+K*avg)/(x.w+K)/avg:1;};
+  const pois=(l,k)=>{let p=Math.exp(-l);for(let i=1;i<=k;i++)p*=l/i;return p;};
+  return (h,a)=>{
+    const lh=mh*att(h)*def(a),la=ma*att(a)*def(h);let pH=0,pD=0,pA=0;
+    for(let i=0;i<=9;i++)for(let j=0;j<=9;j++){const p=pois(lh,i)*pois(la,j);if(i>j)pH+=p;else if(i==j)pD+=p;else pA+=p;}
+    const s=pH+pD+pA;return [pH/s,pD/s,pA/s];
+  };
+}
+function run(curTxt,prevTxt,fixTxt,lg,days,schedTxt,startYear,prevSchedTxt,errs){
+  const sy=startYear||new Date().getFullYear();
+  const ofCurList=Array.isArray(schedTxt)?schedTxt:(schedTxt?parseOpenFootball(schedTxt,sy):[]);
+  const hasB365=!!(curTxt&&prevTxt);
+  const curPlayed=hasB365?toPlayed(parseCSV(curTxt)):ofPlayed(ofCurList);
+  const prevPlayed=hasB365?toPlayed(parseCSV(prevTxt)):(Array.isArray(prevSchedTxt)?ofPlayed(prevSchedTxt):(prevSchedTxt?ofPlayed(parseOpenFootball(prevSchedTxt,sy-1)):[]));
+  const T=buildTeamStats(prevPlayed,curPlayed);
+  const stRows=standings(curPlayed),lgName=$('league').selectedOptions[0].textContent;
+  renderStandings(stRows,lgName);
+  renderMatrix(curPlayed,stRows,lgName);
+  renderGoals(curPlayed,stRows,lgName);
+  setupScore(curPlayed,stRows);
+  const now=new Date(), day0=new Date(now.getFullYear(),now.getMonth(),now.getDate()), end=new Date(now.getTime()+days*864e5);
+  const inWin=d=>d&&d>=day0&&d<=end;
+  const real=fixTxt?parseCSV(fixTxt).filter(r=>r.Div===lg).map(r=>({...r,date:parseDate(r.Date,r.Time)}))
+    .filter(r=>inWin(r.date)&&num(r.B365H)>1):[];
+  const seen=new Set(real.map(r=>r.HomeTeam+'|'+r.AwayTeam));
+  const est=[];
+  if(ofCurList.length){
+    const known=Object.keys(T),prob=poissonProbs(prevPlayed,curPlayed);
+    for(const m of ofCurList){
+      if(m.played||!inWin(m.date))continue;
+      const h=matchTeam(m.home,known),a=matchTeam(m.away,known);
+      if(seen.has(h+'|'+a))continue;
+      const p=prob(h,a);
+      est.push({Div:lg,date:m.date,HomeTeam:h,AwayTeam:a,est:true,B365H:(1/(p[0]*1.06)).toFixed(2),B365D:(1/(p[1]*1.06)).toFixed(2),B365A:(1/(p[2]*1.06)).toFixed(2)});
+    }
+  }
+  const fixtures=real.concat(est).sort((a,b)=>a.date-b.date);
+  showMap(fixtures);
+  // reference set: every played game of last season + this season, with its odds and real result
+  let past=prevPlayed.concat(curPlayed).sort((a,b)=>a.date-b.date);
+  if(!hasB365){ // no bet365 history: walk-forward model odds (each game priced only from games before it)
+    const all=past;past=[];
+    for(let i=60;i<all.length;i++){
+      const p=poissonProbs([],all.slice(0,i))(all[i].home,all[i].away);
+      past.push({...all[i],o:[1/(p[0]*1.06),1/(p[1]*1.06),1/(p[2]*1.06)]});
+    }
+  }
+  const K=+$('knn').value;
+  const info=hasB365?`Past bet365 odds loaded. ${real.length} upcoming match(es) with real bet365 odds, ${est.length} with model-estimated odds (~). `
+    :`⚠ football-data.co.uk (the only free source of bet365 odds) could not be reached from the browser, so results and the schedule come from openfootball and ALL odds (past and upcoming) are model estimates (~), not bet365. `;
+  const res=analyseKNN(fixtures,past,K,0,$('wmode').value,$('axscale').value==='equal');
+  res.estHist=!hasB365;
+  const extra='';
+  if(res.error){renderUpcomingBasic(fixtures);setStatus(info+res.error+extra);return;}
+  setStatus(info+`${res.items.length} upcoming matches compared with ${res.past.length} past games.`);
+  render(res);
+}
+function render(res){
+  const {items,past,lab,model,K}=res;
+  $('outCard').hidden=false;$('tblCard').hidden=false;
+  $('varInfo').textContent='Each game is placed by its three bet365 odds. Horizontal axis x = the odd of 1, kept as it is'+(model.equal?' (rescaled to unit spread)':'')+'. Vertical axis y = the first principal component (PCA) of the odds of X and 2 (standardised), which keeps '+(model.kept*100).toFixed(1)+'% of their variance'+(model.equal?', rescaled to unit spread':'')+'. '+past.length+' past games are placed on that plane with their real result; distance between two games = √((x₁−x₂)² + (y₁−y₂)²); each upcoming game takes its '+K+' nearest past games and computes the weighted average Σ(weight × score) ÷ Σ(weight), with score 1 = +1, X = 0, 2 = −1 and weight = '+($('wmode').value==='dist'?'the distance':'1 ÷ distance')+'. Average ≥ +0.5 gives 1, ≤ −0.5 gives 2, otherwise X.';
+  plotSetup(res);
+  const fmt=d=>d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  let h='<tr><th>Date</th><th>Match</th><th class="n">1</th><th class="n">X</th><th class="n">2</th><th>Nearest '+K+' results</th><th class="n">Average</th><th>Suggestion</th><th>Nearest game result</th></tr>';
+  for(const it of items){
+    const f=it.fx,e=f.est?'~':'',sh=it.share,ng=past[it.nearest[0]],nr=lab[it.nearest[0]],nk=['1','X','2'][nr];
+    h+=`<tr class="up" data-i="${items.indexOf(it)}" title="Click to see the history of both teams"><td>${fmt(f.date)}</td><td>${esc(f.HomeTeam)} – ${esc(f.AwayTeam)}</td>
+      <td class="n">${e}${it.o[0].toFixed(2)}</td><td class="n">${e}${it.o[1].toFixed(2)}</td><td class="n">${e}${it.o[2].toFixed(2)}</td>
+      <td>1:${it.cnt[0]} &nbsp;X:${it.cnt[1]} &nbsp;2:${it.cnt[2]}</td>
+      <td class="n"><b>${it.avg>0?'+':''}${it.avg.toFixed(2)}</b></td>
+      <td><span class="pill p${it.pick}">${it.pick}</span></td>
+      <td><span class="pill p${nk}">${nk}</span> <span class="note">${esc(ng.home)} ${ng.hg}-${ng.ag} ${esc(ng.away)}</span></td></tr>`;
+  }
+  $('tbl').innerHTML=h;
+  // upcoming games also appear purple in the results matrix (cells that are still empty)
+  const um=new Map(items.map((it,i)=>[it.fx.HomeTeam+'|'+it.fx.AwayTeam,i]));
+  document.querySelectorAll('#mxTbl td.mnone').forEach(td=>{
+    const i=um.get(td.dataset.nr+'|'+td.dataset.nc);if(i===undefined)return;
+    const it=items[i];td.classList.replace('mnone','mup');td.dataset.ui=i;td.textContent='vs';
+    td.title=fmtDay(it.fx.date)+'\n'+it.fx.HomeTeam+' – '+it.fx.AwayTeam+'\nupcoming · odds 1: '+it.o[0].toFixed(2)+' · X: '+it.o[1].toFixed(2)+' · 2: '+it.o[2].toFixed(2)+'\nClick for the history of both teams';
+  });
+}
+$('tbl').onclick=e=>{const tr=e.target.closest('tr.up');if(tr)selectUpcoming(+tr.dataset.i);};
+
+/* ---------- interactive PCA plot: zoom, pan, click a dot ---------- */
+let PLOT=null;
+const fmtD=d=>d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+function plotSetup(res){
+  const {items,past,model}=res,pts=[];
+  past.forEach((m,i)=>pts.push({kind:'past',i,x:model.scores[i][0],y:model.scores[i][1]}));
+  items.forEach((it,i)=>pts.push({kind:'up',i,x:it.pc[0],y:it.pc[1]}));
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),px=(x1-x0)*0.06||1,py=(y1-y0)*0.06||1;
+  const home={x0:x0-px,x1:x1+px,y0:y0-py,y1:y1+py};
+  PLOT={res,pts,home,view:{...home},sel:null,W:800,H:420,pad:38};
+  $('dotInfo').innerHTML='Click any dot to see its game, odds and result.';
+  plotDraw();
+}
+function plotCols(){const cs=getComputedStyle(document.documentElement),g=n=>cs.getPropertyValue(n).trim();
+  return {up:g('--cp')||'#8e44ad',res:[g('--c1')||'#1f9d55',g('--cx')||'#e0a100',g('--c2')||'#d64545'],ink:g('--ink')||'#222',mut:g('--mut')||'#777',line:g('--line')||'#ddd'};}
+const pxX=v=>PLOT.pad+(v-PLOT.view.x0)/(PLOT.view.x1-PLOT.view.x0)*(PLOT.W-2*PLOT.pad);
+const pxY=v=>PLOT.H-PLOT.pad-(v-PLOT.view.y0)/(PLOT.view.y1-PLOT.view.y0)*(PLOT.H-2*PLOT.pad);
+const zoomFactor=()=>(PLOT.home.x1-PLOT.home.x0)/(PLOT.view.x1-PLOT.view.x0);
+function plotDraw(){
+  if(!PLOT)return;
+  const cv=$('plot'),dpr=window.devicePixelRatio||1;PLOT.W=cv.clientWidth||800;PLOT.H=cv.clientHeight||420;
+  cv.width=PLOT.W*dpr;cv.height=PLOT.H*dpr;const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,PLOT.W,PLOT.H);
+  const C=plotCols(),{res,pts,view,pad,W,H}=PLOT,{items,past,lab}=res,z=zoomFactor();
+  // grid + axis labels
+  g.font='11px system-ui';g.fillStyle=C.mut;g.strokeStyle=C.line;g.lineWidth=1;
+  for(let i=0;i<=5;i++){
+    const vx=view.x0+(view.x1-view.x0)*i/5,vy=view.y0+(view.y1-view.y0)*i/5;
+    g.beginPath();g.moveTo(pxX(vx),pad/2);g.lineTo(pxX(vx),H-pad);g.stroke();
+    g.beginPath();g.moveTo(pad,pxY(vy));g.lineTo(W-pad/2,pxY(vy));g.stroke();
+    g.fillText(vx.toFixed(2),pxX(vx)-10,H-pad+14);g.fillText(vy.toFixed(2),4,pxY(vy)+4);
+  }
+  g.fillText('x = odd 1',W-pad-40,H-4);g.fillText('y = PC of odds X & 2',4,pad/2-2);
+  g.save();g.beginPath();g.rect(pad,pad/2,W-1.5*pad,H-1.5*pad);g.clip();
+  const r=Math.min(8,3+Math.log2(z)*1.2),inView=p=>{const x=pxX(p.x),y=pxY(p.y);return x>=pad-10&&x<=W&&y>=pad/2-10&&y<=H-pad+10;};
+  g.globalAlpha=0.55;
+  for(const p of pts)if(p.kind==='past'&&inView(p)){g.beginPath();g.arc(pxX(p.x),pxY(p.y),r,0,7);g.fillStyle=C.res[lab[p.i]];g.fill();}
+  g.globalAlpha=1;
+  // selected upcoming game: lines to its nearest past games
+  const sel=PLOT.sel;
+  if(sel&&sel.kind==='up'){
+    const it=items[sel.i];g.strokeStyle=C.ink;g.setLineDash([4,3]);
+    it.nearest.forEach(j=>{g.beginPath();g.moveTo(pxX(it.pc[0]),pxY(it.pc[1]));g.lineTo(pxX(res.model.scores[j][0]),pxY(res.model.scores[j][1]));g.stroke();});
+    g.setLineDash([]);g.lineWidth=2;
+    it.nearest.forEach((j,n)=>{const x=pxX(res.model.scores[j][0]),y=pxY(res.model.scores[j][1]);g.beginPath();g.arc(x,y,r+4,0,7);g.stroke();g.fillStyle=C.ink;g.fillText(String(n+1),x+r+5,y-r);});
+    g.lineWidth=1;
+  }
+  const pickI={'1':0,'X':1,'2':2};
+  for(const p of pts)if(p.kind==='up'){
+    const it=items[p.i],x=pxX(p.x),y=pxY(p.y);
+    g.beginPath();g.arc(x,y,9,0,7);g.fillStyle=C.res[pickI[it.pick]];g.fill();g.lineWidth=(sel&&sel.kind==='up'&&sel.i===p.i)?5:3;g.strokeStyle=C.up;g.stroke();g.lineWidth=1;
+    g.fillStyle=C.ink;g.fillText(short(it.fx.HomeTeam)+'-'+short(it.fx.AwayTeam)+' · '+it.pick,x+12,y+4);
+  }
+  if(sel&&sel.kind==='past'){const p=pts.find(q=>q.kind==='past'&&q.i===sel.i);g.beginPath();g.arc(pxX(p.x),pxY(p.y),r+5,0,7);g.lineWidth=3;g.strokeStyle=C.ink;g.stroke();g.lineWidth=1;}
+  // team labels on past dots once zoomed in enough
+  if(z>=8){let n=0;g.fillStyle=C.mut;for(const p of pts)if(p.kind==='past'&&inView(p)&&n<80){const m=past[p.i];g.fillText(short(m.home)+' '+m.hg+'-'+m.ag+' '+short(m.away),pxX(p.x)+r+3,pxY(p.y)+3);n++;}}
+  g.restore();
+}
+function plotZoom(f,cx,cy){ // f>1 zoom in; (cx,cy) = pixel anchor
+  const v=PLOT.view,H=PLOT.home;
+  const ax=v.x0+(cx-PLOT.pad)/(PLOT.W-2*PLOT.pad)*(v.x1-v.x0),ay=v.y0+(PLOT.H-PLOT.pad-cy)/(PLOT.H-2*PLOT.pad)*(v.y1-v.y0);
+  let w=(v.x1-v.x0)/f,h=(v.y1-v.y0)/f;
+  w=Math.min(Math.max(w,(H.x1-H.x0)/2000),(H.x1-H.x0)*3);h=Math.min(Math.max(h,(H.y1-H.y0)/2000),(H.y1-H.y0)*3);
+  const fx=(ax-v.x0)/(v.x1-v.x0),fy=(ay-v.y0)/(v.y1-v.y0);
+  PLOT.view={x0:ax-fx*w,x1:ax+(1-fx)*w,y0:ay-fy*h,y1:ay+(1-fy)*h};plotDraw();
+}
+function plotHit(mx,my){
+  let best=null,bd=1e9;
+  for(const p of PLOT.pts){const d=Math.hypot(pxX(p.x)-mx,pxY(p.y)-my),lim=p.kind==='up'?14:11;
+    const adj=p.kind==='up'?d-4:d;if(d<=lim&&adj<bd){bd=adj;best=p;}}
+  return best;
+}
+const pillOf=k=>`<span class="pill p${k}">${k}</span>`;
+function plotSelect(p){
+  PLOT.sel=p;plotDraw();const box=$('dotInfo'),{res}=PLOT,{items,past,lab,model}=res,tilde=res.estHist?'~':'';
+  if(!p){box.innerHTML='Click any dot to see its game, odds and result.';return;}
+  const oddsTxt=o=>`${tilde}${o[0].toFixed(2)} / ${tilde}${o[1].toFixed(2)} / ${tilde}${o[2].toFixed(2)}`;
+  const probTxt=o=>{const q=impliedP(o);return q.map(x=>(x*100).toFixed(0)+'%').join(' / ');};
+  if(p.kind==='past'){
+    const m=past[p.i],k=['1','X','2'][lab[p.i]],sc=model.scores[p.i];
+    box.innerHTML=`<b>Past game:</b> ${esc(m.home)} ${m.hg}–${m.ag} ${esc(m.away)} · ${fmtD(m.date)}<br>Result ${pillOf(k)} · odds 1 / X / 2: ${oddsTxt(m.o)} (probabilities ${probTxt(m.o)}) · x ${sc[0].toFixed(3)}, y ${sc[1].toFixed(3)}`;
+  }else{
+    const it=items[p.i],f=it.fx,e=f.est?'~':'';
+    let h=`<b>Upcoming game:</b> ${esc(f.HomeTeam)} – ${esc(f.AwayTeam)} · ${fmtD(f.date)}<br>Odds 1 / X / 2: ${e}${it.o[0].toFixed(2)} / ${e}${it.o[1].toFixed(2)} / ${e}${it.o[2].toFixed(2)} (probabilities ${probTxt(it.o)}) · x ${it.pc[0].toFixed(3)}, y ${it.pc[1].toFixed(3)}<br>Suggestion ${pillOf(it.pick)} · weighted average ${it.avg>0?'+':''}${it.avg.toFixed(2)}`;
+    h+=`<div class="scroll"><table><tr><th>#</th><th>Date</th><th>Past game</th><th>Result</th><th class="n">Odds 1/X/2</th><th class="n">Distance</th></tr>`;
+    it.nearest.forEach((j,n)=>{const m=past[j],k=['1','X','2'][lab[j]],d=Math.hypot(model.scores[j][0]-it.pc[0],model.scores[j][1]-it.pc[1]);
+      h+=`<tr><td>${n+1}</td><td>${m.date.toLocaleDateString('en-GB')}</td><td>${esc(m.home)} ${m.hg}–${m.ag} ${esc(m.away)}</td><td>${pillOf(k)}</td><td class="n">${oddsTxt(m.o)}</td><td class="n">${d.toFixed(3)}</td></tr>`;});
+    box.innerHTML=h+'</table></div>'+upHistory(res,f,tilde);
+  }
+}
+/* history of the two teams of an upcoming game:
+   home team in its home games and away team in its away games, both sorted by the odd of 1 (smallest first) */
+function histBox(rows,which,tilde,title,thisOdd){
+  const col=which===0?'1':'2',sorted=rows.slice().sort((a,b)=>a.m.o[which]-b.m.o[which]);
+  let h=`<div><b>${title}</b><br><span class="note">${sorted.length} game${sorted.length==1?'':'s'}, sorted by the odd of ${col} from smaller to bigger · this game: odd ${col} = ${thisOdd}</span><div class="box"><table><tr><th class="key">Odd ${col}</th><th>Date</th><th>Game</th><th>Result</th><th class="n">1</th><th class="n">X</th><th class="n">2</th></tr>`;
+  for(const {m,k} of sorted){
+    const c=i=>`<td class="n${i===which?' key':''}">${tilde}${m.o[i].toFixed(2)}</td>`;
+    h+=`<tr><td class="key n"><b>${tilde}${m.o[which].toFixed(2)}</b></td><td>${m.date.toLocaleDateString('en-GB')}</td><td>${esc(m.home)} ${m.hg}–${m.ag} ${esc(m.away)}</td><td>${pillOf(k)}</td>${c(0)}${c(1)}${c(2)}</tr>`;
+  }
+  if(!sorted.length)h+='<tr><td colspan="7" class="note">No past games found for this team.</td></tr>';
+  return h+'</table></div></div>';
+}
+function upHistory(res,f,tilde){
+  const {past,lab}=res,all=past.map((m,i)=>({m,k:['1','X','2'][lab[i]]}));
+  const hm=all.filter(x=>x.m.home===f.HomeTeam),aw=all.filter(x=>x.m.away===f.AwayTeam);
+  return '<div class="hist">'+
+    histBox(hm,0,tilde,esc(f.HomeTeam)+' – home games',(tilde+(+f.B365H).toFixed(2)))+
+    histBox(aw,0,tilde,esc(f.AwayTeam)+' – away games',(tilde+(+f.B365H).toFixed(2)))+'</div>';
+}
+function selectUpcoming(i){
+  if(!PLOT||!PLOT.res.items[i])return;
+  plotSelect({kind:'up',i});
+  $('dotInfo').scrollIntoView({behavior:'smooth',block:'start'});
+}
+(function plotEvents(){
+  const cv=$('plot');let drag=null;
+  const pos=e=>{const r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];};
+  cv.addEventListener('pointerdown',e=>{if(!PLOT)return;const [x,y]=pos(e);drag={x,y,v:{...PLOT.view},moved:false};try{cv.setPointerCapture(e.pointerId);}catch(_){}cv.style.cursor='grabbing';});
+  cv.addEventListener('pointermove',e=>{if(!PLOT)return;const [x,y]=pos(e);
+    if(drag){const dx=x-drag.x,dy=y-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;
+      if(drag.moved){const w=drag.v.x1-drag.v.x0,h=drag.v.y1-drag.v.y0,ux=-dx/(PLOT.W-2*PLOT.pad)*w,uy=dy/(PLOT.H-2*PLOT.pad)*h;
+        PLOT.view={x0:drag.v.x0+ux,x1:drag.v.x1+ux,y0:drag.v.y0+uy,y1:drag.v.y1+uy};plotDraw();}}
+    else cv.style.cursor=plotHit(x,y)?'pointer':'grab';});
+  cv.addEventListener('pointerup',e=>{if(!PLOT||!drag)return;const [x,y]=pos(e),was=drag;drag=null;cv.style.cursor='grab';
+    if(!was.moved)plotSelect(plotHit(x,y));});
+  cv.addEventListener('pointercancel',()=>{drag=null;});
+  cv.addEventListener('wheel',e=>{if(!PLOT)return;e.preventDefault();const [x,y]=pos(e);plotZoom(Math.pow(1.002,-e.deltaY),x,y);},{passive:false});
+  $('zin').onclick=()=>PLOT&&plotZoom(1.6,PLOT.W/2,PLOT.H/2);
+  $('zout').onclick=()=>PLOT&&plotZoom(1/1.6,PLOT.W/2,PLOT.H/2);
+  $('zreset').onclick=()=>{if(PLOT){PLOT.view={...PLOT.home};plotDraw();}};
+  window.addEventListener('resize',()=>plotDraw());
+})();
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function short(t){return t.length>9?t.slice(0,8)+'.':t;}
+
+/* =====================================================================
+   STADIUM MAP (OpenStreetMap) + KICKOFF WEATHER (Open-Meteo, no API key)
+   ===================================================================== */
+let MAP=null,MGROUP=null,MAPRUN=0;
+const wxEmoji=c=>c===0?'☀️':c===1?'🌤️':c===2?'⛅':c===3?'☁️':c===45||c===48?'🌫️':(c>=51&&c<=67)||(c>=80&&c<=82)?'🌧️':(c>=71&&c<=77)?'🌨️':(c>=95&&c<=99)?'⛈️':'🌡️';
+const wxWord=c=>c===0?'clear sky':c===1?'mainly clear':c===2?'partly cloudy':c===3?'overcast':c===45||c===48?'fog':(c>=51&&c<=57)?'drizzle':(c>=61&&c<=67)?'rain':(c>=71&&c<=77)?'snow':(c>=80&&c<=82)?'rain showers':(c>=85&&c<=86)?'snow showers':(c>=95&&c<=99)?'thunderstorm':'—';
+/* country of each competition: keeps the geocoder inside the right country */
+const CC={E0:'gb',E1:'gb',E2:'gb',E3:'gb',EC:'gb',SP1:'es',SP2:'es',I1:'it',I2:'it',D1:'de',D2:'de',F1:'fr',F2:'fr',N1:'nl',B1:'be',P1:'pt',T1:'tr',G1:'gr',SC0:'gb',SC1:'gb',SWE:'se',NOR:'no',FIN:'fi',HUN:'hu',CZE:'cz',GRC:'gr'};
+const VENUE=/stadium|pitch|sports_centre|sports_hall|venue/i;
+let NOM_LAST=0;
+let NOM_Q=Promise.resolve();
+function nomPace(){ // queue: one real Nominatim request per 1.1 s even when several lookups run in parallel
+  const p=NOM_Q.then(()=>new Promise(r=>setTimeout(r,Math.max(0,1100-(Date.now()-NOM_LAST))))).then(()=>{NOM_LAST=Date.now();});
+  NOM_Q=p;return p;
+}
+/* clubs whose name is a nickname, not a place -> their home city (last-resort fallback) */
+const TEAMCITY={
+  'salernitana':'Salerno','sampdoria':'Genova','juve stabia':'Castellammare di Stabia','virtus entella':'Chiavari','entella':'Chiavari','reggiana':'Reggio Emilia','sudtirol':'Bolzano','carrarese':'Carrara',
+  'juventus':'Torino','inter':'Milano','atalanta':'Bergamo','lazio':'Roma','roma':'Roma','fiorentina':'Firenze','udinese':'Udine','cittadella':'Cittadella','ternana':'Terni','spezia':'La Spezia',
+  'arsenal':'London','chelsea':'London','tottenham':'London','everton':'Liverpool','west ham':'London','crystal palace':'London','brighton':'Brighton','wolves':'Wolverhampton','brentford':'London','fulham':'London','luton':'Luton',
+  'ath madrid':'Madrid','vallecano':'Madrid','barcelona':'Barcelona','espanyol':'Barcelona','betis':'Sevilla','osasuna':'Pamplona','real sociedad':'San Sebastián','alaves':'Vitoria-Gasteiz','celta':'Vigo','mallorca':'Palma','levante':'Valencia','ath bilbao':'Bilbao',
+  'bayern munich':'München','borussia dortmund':'Dortmund','m gladbach':'Mönchengladbach','ein frankfurt':'Frankfurt am Main','koln':'Köln','dusseldorf':'Düsseldorf','st pauli':'Hamburg','werder bremen':'Bremen',
+  'paris sg':'Paris','montpellier':'Montpellier','lorient':'Lorient',
+  'ajax':'Amsterdam','psv':'Eindhoven','feyenoord':'Rotterdam','sparta rotterdam':'Rotterdam','az alkmaar':'Alkmaar','twente':'Enschede','nec':'Nijmegen','go ahead eagles':'Deventer','fortuna sittard':'Sittard','pec zwolle':'Zwolle','willem ii':'Tilburg','heracles':'Almelo',
+  'benfica':'Lisboa','sporting cp':'Lisboa','sporting':'Lisboa','casa pia':'Lisboa','boavista':'Porto','rio ave':'Vila do Conde','gil vicente':'Barcelos','farense':'Faro','moreirense':'Guimarães','estoril':'Estoril',
+  'anderlecht':'Brussel','club brugge':'Brugge','cercle brugge':'Brugge','standard liege':'Liège','st liege':'Liège','beerschot':'Antwerpen','oh leuven':'Leuven','zulte waregem':'Waregem','sint truiden':'Sint-Truiden','kaa gent':'Gent',
+  'galatasaray':'İstanbul','fenerbahce':'İstanbul','besiktas':'İstanbul','basaksehir':'İstanbul','kasimpasa':'İstanbul','trabzonspor':'Trabzon','rizespor':'Rize','konyaspor':'Konya','antalyaspor':'Antalya','sivasspor':'Sivas','kayserispor':'Kayseri','alanyaspor':'Alanya',
+  'olympiacos':'Pireas','panathinaikos':'Athens','aek athens':'Athens','paok':'Thessaloniki','aris':'Thessaloniki','iraklis':'Thessaloniki','ofi crete':'Heraklion','asteras tripoli':'Tripoli','atromitos':'Athens','panetolikos':'Agrinio','levadiakos':'Livadeia','kifisia':'Kifisia','pas giannina':'Ioannina','volos':'Volos','lamia':'Lamia','xanthi':'Xanthi','aegaleo':'Aigaleo','ionikos':'Nikaia','panachaiki':'Patra','kalamata':'Kalamata',
+  'celtic':'Glasgow','rangers':'Glasgow','hearts':'Edinburgh','hibernian':'Edinburgh','st mirren':'Paisley','ross county':'Dingwall','dundee united':'Dundee','queen south':'Dumfries','partick':'Glasgow',
+  'nott m forest':'Nottingham','man united':'Manchester','man city':'Manchester','sheffield weds':'Sheffield','west brom':'West Bromwich','qpr':'London','leicester':'Leicester','ipswich':'Ipswich','southampton':'Southampton','norwich':'Norwich','watford':'Watford','hull city':'Kingston upon Hull','stoke':'Stoke-on-Trent','blackburn':'Blackburn','preston':'Preston','swansea':'Swansea','cardiff':'Cardiff','wigan':'Wigan','bolton':'Bolton','charlton':'London','millwall':'London','birmingham':'Birmingham','coventry':'Coventry','bristol city':'Bristol','sheffield united':'Sheffield','sunderland':'Sunderland','middlesbrough':'Middlesbrough','burnley':'Burnley','leeds':'Leeds','portsmouth':'Portsmouth','plymouth':'Plymouth','luton town':'Luton','derby':'Derby','barnsley':'Barnsley','doncaster':'Doncaster','blackpool':'Blackpool','fleetwood':'Fleetwood','wigan athletic':'Wigan','shrewsbury':'Shrewsbury','lincoln':'Lincoln','peterborough':'Peterborough','mk dons':'Milton Keynes','reading':'Reading','oxford united':'Oxford','wycombe':'High Wycombe','orient':'London','bromley':'Bromley','wimbledon':'London','charlton athletic':'London','burton':'Burton upon Trent','crewe':'Crewe','grimsby':'Grimsby','stockport':'Stockport','mansfield':'Mansfield','hartlepool':'Hartlepool','barrow':'Barrow','rochdale':'Rochdale','salford':'Salford','accrington':'Accrington','bradford':'Bradford','exeter':'Exeter','cheltenham':'Cheltenham','cambridge':'Cambridge','port vale':'Burslem','colchester':'Colchester','gillingham':'Gillingham','stevenage':'Stevenage','harrogate':'Harrogate','newport':'Newport','sutton':'London','crawley':'Crawley','walsall':'Walsall','leyton orient':'London','northampton':'Northampton','bristol rovers':'Bristol','carlisle':'Carlisle','tranmere':'Birkenhead','morecambe':'Morecambe','sutton united':'London'
+};
+async function geoStadiumOSM(team,cc,noCity){
+  const key='stadium4:'+normName(team);
+  const hit=cacheGet(key,Infinity);
+  if(hit&&!(noCity&&hit.city))return hit;
+  if(hit===0)return null;
+  const queries=[team+' stadium',team+' football stadium',team+' arena'];
+  for(const q of queries){
+    await nomPace();
+    try{
+      const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1'
+        +(cc?'&countrycodes='+cc:'')+'&q='+encodeURIComponent(q));
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const j=await r.json();
+      const best=(j||[]).find(x=>VENUE.test(String(x.category||'')+' '+String(x.type||''))
+        &&(!cc||!x.address||String(x.address.country_code||'').toLowerCase()===cc));
+      if(best&&isFinite(+best.lat)&&isFinite(+best.lon)){
+        const v={lat:+best.lat,lon:+best.lon,name:best.name?best.name:q};
+        cacheSet(key,v);return v;
+      }
+    }catch(e){}
+  }
+  if(noCity)return null;
+  const cityQ=TEAMCITY[normName(team)],tries=cityQ?[cityQ,team]:[team];
+  for(const q of tries){
+    await nomPace();
+    try{
+      const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1'
+        +(cc?'&countrycodes='+cc:'')+'&q='+encodeURIComponent(q));
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const j=await r.json();
+      const place=(j||[]).find(x=>/place/i.test(String(x.category||''))
+        &&(!cc||!x.address||String(x.address.country_code||'').toLowerCase()===cc));
+      if(place&&isFinite(+place.lat)&&isFinite(+place.lon)){
+        const v={lat:+place.lat,lon:+place.lon,name:(place.name||q)+' (city – stadium not found)',city:true};
+        cacheSet(key,v);return v;
+      }
+    }catch(e){}
+  }
+  return null;
+}
+
+/* =====================================================================
+   STADIUM LOOKUP
+   ===================================================================== */
+const QC={gb:['Q145','Q21','Q22','Q25','Q26'],es:['Q29'],it:['Q38'],de:['Q183'],fr:['Q142'],nl:['Q55'],be:['Q31'],pt:['Q45'],tr:['Q43'],gr:['Q41'],se:['Q34'],no:['Q20'],fi:['Q33'],hu:['Q28'],cz:['Q213']};
+const SHORTNAME={'man united':'Manchester United','man city':'Manchester City','nott m forest':'Nottingham Forest','tottenham':'Tottenham Hotspur','newcastle':'Newcastle United','west ham':'West Ham United','leeds':'Leeds United','wolves':'Wolverhampton Wanderers','brighton':'Brighton & Hove Albion','sheffield weds':'Sheffield Wednesday','west brom':'West Bromwich Albion','qpr':'Queens Park Rangers','ath madrid':'Atlético Madrid','ath bilbao':'Athletic Bilbao','sociedad':'Real Sociedad','vallecano':'Rayo Vallecano','betis':'Real Betis','celta':'Celta Vigo','alaves':'Deportivo Alavés','espanol':'Espanyol','m gladbach':'Borussia Mönchengladbach','ein frankfurt':'Eintracht Frankfurt','paris sg':'Paris Saint-Germain','st etienne':'AS Saint-Étienne','inter':'Inter Milan','milan':'AC Milan','verona':'Hellas Verona','hertha':'Hertha BSC','koln':'1. FC Köln','nurnberg':'1. FC Nürnberg','hamburg':'Hamburger SV','dusseldorf':'Fortuna Düsseldorf','st pauli':'FC St. Pauli','sp lisbon':'Sporting CP','sp braga':'S.C. Braga','guimaraes':'Vitória de Guimarães','aek':'AEK Athens','olympiakos':'Olympiacos','psv':'PSV Eindhoven','az':'AZ Alkmaar','nec':'NEC Nijmegen'};
+async function jfetch(url,ms){
+  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),ms||12000);
+  try{const r=await fetch(url,{signal:ctl.signal});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}
+  finally{clearTimeout(to);}
+}
+const WD='https://www.wikidata.org/w/api.php?format=json&origin=*&';
+const claimIds=(e,p)=>((e.claims&&e.claims[p])||[]).map(c=>c.mainsnak&&c.mainsnak.datavalue&&c.mainsnak.datavalue.value&&c.mainsnak.datavalue.value.id).filter(Boolean);
+async function wdEntities(ids,props){
+  const out={};
+  for(let i=0;i<ids.length;i+=50){
+    const j=await jfetch(WD+'action=wbgetentities&languages=en&props='+props+'&ids='+ids.slice(i,i+50).join('|'));
+    Object.assign(out,j.entities||{});
+  }
+  return out;
+}
+const WD_MEM={};
+function wdClub(team,cc){const k=normName(team)+':'+(cc||'');return WD_MEM[k]||(WD_MEM[k]=wdClubRaw(team,cc).catch(e=>({err:'network error: '+e.message})));}
+async function wdClubRaw(team,cc){
+  const n=normName(team),vars=[...new Set([team,SHORTNAME[n],team+' F.C.'].filter(Boolean))];
+  const found=await Promise.all(vars.map(v=>jfetch(WD+'action=wbsearchentities&type=item&language=en&uselang=en&limit=8&search='+encodeURIComponent(v)).then(j=>j.search||[]).catch(()=>[])));
+  const ids=[...new Set(found.flat().map(x=>x.id))];
+  if(!ids.length)return {err:'no entry found for "'+team+'"'};
+  const ents=await wdEntities(ids,'claims|labels|descriptions');
+  const wantSide=/women|youth|reserve|academy|u\d\d|\bii\b/i.test(team);
+  let best=null,bs=0;
+  for(const id of ids){
+    const e=ents[id];if(!e||!e.claims)continue;
+    const hasWhere=(e.claims.P115||[]).length||(e.claims.P159||[]).length||(e.claims.P131||[]).length;
+    if(!hasWhere)continue;
+    const label=(e.labels&&e.labels.en&&e.labels.en.value)||'',desc=(e.descriptions&&e.descriptions.en&&e.descriptions.en.value)||'';
+    if(!(claimIds(e,'P31').includes('Q476028')||/football|soccer/i.test(desc)))continue;
+    if(!wantSide&&/women|youth|reserve|academy|under-\d|\bu\d\d\b/i.test(label+' '+desc))continue;
+    let sc=10;
+    if(cc&&QC[cc]){const c=claimIds(e,'P17');if(c.length)sc+=c.some(x=>QC[cc].includes(x))?5:-20;}
+    const ln=normName(label);
+    if(ln===n||ln===normName(SHORTNAME[n]||''))sc+=4;else if(ln.includes(n)||n.includes(ln))sc+=2;
+    if(sc>bs){bs=sc;best=e;}
+  }
+  if(!best||bs<10)return {err:ids.length+' entr'+(ids.length>1?'ies':'y')+' found but none is a football club of the right country'};
+  const vc=(best.claims.P115||[]).slice().sort((x,y)=>((x.qualifiers&&x.qualifiers.P582)?1:0)-((y.qualifiers&&y.qualifiers.P582)?1:0)||((y.rank==='preferred')-(x.rank==='preferred')));
+  const vids=vc.map(c=>c.mainsnak&&c.mainsnak.datavalue&&c.mainsnak.datavalue.value&&c.mainsnak.datavalue.value.id).filter(Boolean);
+  const vents=vids.length?await wdEntities(vids,'claims|labels'):{};
+  const venues=vids.map(id=>{const v=vents[id];if(!v)return null;
+    const cl=v.claims&&v.claims.P625&&v.claims.P625[0],val=cl&&cl.mainsnak&&cl.mainsnak.datavalue&&cl.mainsnak.datavalue.value;
+    return {label:(v.labels&&v.labels.en&&v.labels.en.value)||'stadium',lat:val&&val.latitude,lon:val&&val.longitude,loc:claimIds(v,'P131')};}).filter(Boolean);
+  return {venues,hq:claimIds(best,'P159'),cloc:claimIds(best,'P131'),hasVenue:vids.length>0};
+}
+async function geoWikidata(team,cc,why){
+  const c=await wdClub(team,cc);
+  if(c.err){why.push('Wikidata: '+c.err);return null;}
+  const v=c.venues.find(x=>isFinite(x.lat)&&isFinite(x.lon));
+  if(v)return {lat:v.lat,lon:v.lon,name:v.label,src:'Wikidata'};
+  why.push('Wikidata: club found, but '+(c.hasVenue?'its home venue has no coordinates':'it lists no home venue'));
+  return null;
+}
+async function wdTowns(team,cc){
+  const c=await wdClub(team,cc);if(!c||c.err)return [];
+  const ids=[...new Set([...c.venues.flatMap(v=>v.loc||[]),...c.hq,...c.cloc])];
+  if(!ids.length)return [];
+  const ents=await wdEntities(ids,'labels|claims');
+  return ids.map(id=>{const e=ents[id];if(!e)return null;
+    const cl=e.claims&&e.claims.P625&&e.claims.P625[0],val=cl&&cl.mainsnak&&cl.mainsnak.datavalue&&cl.mainsnak.datavalue.value;
+    return {name:(e.labels&&e.labels.en&&e.labels.en.value)||'',lat:val&&val.latitude,lon:val&&val.longitude,from:'Wikidata'};}).filter(x=>x&&x.name);
+}
+async function geoSportsDB(team,cc){
+  const n=normName(team),qs=[...new Set([team,SHORTNAME[n]].filter(Boolean))];
+  for(const q of qs){
+    let j;try{j=await jfetch('https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t='+encodeURIComponent(q));}catch(e){continue;}
+    const t=((j&&j.teams)||[]).find(x=>x.strSport==='Soccer'&&x.strStadium);
+    if(!t)continue;
+    for(const sq of [t.strStadium+(t.strStadiumLocation?', '+t.strStadiumLocation:''),t.strStadium]){
+      await nomPace();
+      try{
+        const r=await jfetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1'+(cc?'&countrycodes='+cc:'')+'&q='+encodeURIComponent(sq));
+        const ok=x=>isFinite(+x.lat)&&isFinite(+x.lon),b=(r||[]).find(x=>ok(x)&&VENUE.test(String(x.category||'')+' '+String(x.type||'')))||(r||[]).find(ok);
+        if(b)return {lat:+b.lat,lon:+b.lon,name:t.strStadium,src:'TheSportsDB + OpenStreetMap'};
+      }catch(e){}
+    }
+  }
+  return null;
+}
+/* ---------- Wikipedia season page: the official list "club -> stadium -> town" of the selected league ---------- */
+const WIKI={E0:'Premier League',E1:'EFL Championship',E2:'EFL League One',E3:'EFL League Two',EC:'National League',SP1:'La Liga',SP2:'Segunda División',
+  I1:'Serie A',I2:'Serie B',D1:'Bundesliga',D2:'2. Bundesliga',F1:'Ligue 1',F2:'Ligue 2',N1:'Eredivisie',B1:'Belgian Pro League',P1:'Primeira Liga',
+  T1:'Süper Lig',G1:'Super League Greece',SC0:'Scottish Premiership',SC1:'Scottish Championship',SWE:'Allsvenskan',NOR:'Eliteserien',
+  FIN:'Veikkausliiga',HUN:'Nemzeti Bajnokság I',CZE:'Czech First League'};
+const wn=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\[[^\]]*\]/g,' ').replace(/[^a-z0-9]+/g,' ')
+  .replace(/\b(fc|afc|cf|sc|ac|as|ssc|fk|if|bk|sk|ik|fotboll|football|club|calcio|de|the|1|sv|vfb|vfl|tsg|rb|ud|cd|sd|rc|rcd|ca|us|ss)\b/g,' ').replace(/\s+/g,' ').trim();
+const WIKI_MEM={},WIKI_ERR={},GEO_WHY={};
+async function wikiSeasonRows(lg){
+  if(!WIKI[lg])return null;
+  if(WIKI_MEM[lg])return WIKI_MEM[lg];
+  return WIKI_MEM[lg]=(async()=>{
+    const now=new Date(),cal=CAL.has(lg),y=cal?(now.getMonth()>=2?now.getFullYear():now.getFullYear()-1):(now.getMonth()>=6?now.getFullYear():now.getFullYear()-1);
+    const season=cal?String(y):y+'–'+String((y+1)%100).padStart(2,'0'),key='wikirows:'+lg+':'+season,hit=cacheGet(key,14*864e5);
+    if(hit)return hit;
+    let rows=[];
+    for(const sea of [season,cal?String(y-1):(y-1)+'–'+String(y%100).padStart(2,'0')]){
+      let html=null;
+      try{const j=await jfetch('https://en.wikipedia.org/w/api.php?action=parse&format=json&origin=*&redirects=1&prop=text&disableeditsection=1&page='+encodeURIComponent(sea+' '+WIKI[lg]),20000);html=j&&j.parse&&j.parse.text&&j.parse.text['*'];
+        if(!html)WIKI_ERR[lg]='Wikipedia has no page called "'+sea+' '+WIKI[lg]+'"';}
+      catch(e){WIKI_ERR[lg]='Wikipedia request for "'+sea+' '+WIKI[lg]+'" failed ('+e.message+')';}
+      if(!html)continue;
+      rows=parseWikiTeams(html);if(rows.length>=6)break;
+      WIKI_ERR[lg]='the Wikipedia page "'+sea+' '+WIKI[lg]+'" has no table with club + stadium columns';
+    }
+    if(!rows.length)return null;
+    delete WIKI_ERR[lg];
+    const titles=[...new Set(rows.map(r=>r.stadiumPage).filter(Boolean))],co={};
+    for(let i=0;i<titles.length;i+=40){
+      try{
+        const j=await jfetch('https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=coordinates&colimit=max&titles='+encodeURIComponent(titles.slice(i,i+40).join('|')));
+        const q=j.query||{},map={};
+        (q.normalized||[]).forEach(x=>map[x.from]=x.to);(q.redirects||[]).forEach(x=>map[x.from]=x.to);
+        const byTitle={};Object.values(q.pages||{}).forEach(pg=>{if(pg.coordinates&&pg.coordinates[0])byTitle[pg.title]=pg.coordinates[0];});
+        titles.slice(i,i+40).forEach(t=>{let x=t;for(let k=0;k<3&&map[x];k++)x=map[x];if(byTitle[x])co[t]=byTitle[x];});
+      }catch(e){}
+    }
+    rows.forEach(r=>{const c=co[r.stadiumPage];if(c){r.lat=c.lat;r.lon=c.lon;}});
+    cacheSet(key,rows);return rows;
+  })();
+}
+function parseWikiTeams(html){
+  const doc=new DOMParser().parseFromString(html,'text/html'),out=[];
+  for(const tb of doc.querySelectorAll('table.wikitable')){
+    const trs=[...tb.querySelectorAll('tr')];if(trs.length<5)continue;
+    const head=[...trs[0].children].map(c=>c.textContent.trim());
+    const iT=head.findIndex(h=>/^(team|club|teams|clubs)\b/i.test(h)),iS=head.findIndex(h=>/stadium|ground|venue|arena/i.test(h)),iL=head.findIndex(h=>/location|city|town|home city|^place/i.test(h));
+    if(iT<0||iS<0)continue;
+    const carry=[];
+    for(const tr of trs.slice(1)){
+      const cells=[];let ci=0;
+      for(const c of tr.children){
+        while(carry[cells.length]&&carry[cells.length].n>0){const k=cells.length;cells.push(carry[k].el);carry[k].n--;}
+        const rs=+(c.getAttribute('rowspan')||1);cells.push(c);if(rs>1)carry[cells.length-1]={el:c,n:rs-1};
+      }
+      while(carry[cells.length]&&carry[cells.length].n>0){const k=cells.length;cells.push(carry[k].el);carry[k].n--;}
+      if(cells.length<=Math.max(iT,iS))continue;
+      const team=cells[iT].textContent.replace(/\[[^\]]*\]/g,'').trim(),sc=cells[iS];
+      const a=[...sc.querySelectorAll('a')].find(x=>/^\/wiki\//.test(x.getAttribute('href')||'')&&!/[#:]/.test(x.getAttribute('href').slice(6)));
+      if(!team)continue;
+      out.push({team,stadium:sc.textContent.replace(/\[[^\]]*\]/g,'').trim(),stadiumPage:a?decodeURIComponent(a.getAttribute('href').slice(6)).replace(/_/g,' '):'',
+        place:iL>=0&&cells[iL]?cells[iL].textContent.replace(/\[[^\]]*\]/g,'').trim():''});
+    }
+    if(out.length>=6)return out;
+  }
+  return out;
+}
+function wikiPick(team,rows){
+  const n=normName(team),names=[...new Set([team,SHORTNAME[n]].filter(Boolean).map(wn).filter(Boolean))];
+  let best=null,bs=0;
+  for(const r of rows){
+    const w=wn(r.team);if(!w)continue;let sc=0;
+    for(const x of names){
+      if(x===w)sc=Math.max(sc,5);
+      else if(x.length>=4&&(w.includes(x)||x.includes(w)))sc=Math.max(sc,4);
+      else{
+        const xt=x.split(' '),wt=w.split(' ');
+        if(xt.length>1&&xt.length<=wt.length&&xt.every((t,i)=>wt[i]&&(wt[i].startsWith(t)||t.startsWith(wt[i]))))sc=Math.max(sc,3);
+        else if(xt[0].length>=4&&wt[0]===xt[0])sc=Math.max(sc,2);
+      }
+    }
+    if(sc>bs){bs=sc;best=r;}
+  }
+  return bs>=2?best:null;
+}
+async function geoWikiLeague(team,cc,lg,why){
+  if(!WIKI[lg]){why.push('Wikipedia: no season page is configured for this competition');return null;}
+  const rows=await wikiSeasonRows(lg);
+  if(!rows){why.push('Wikipedia: '+(WIKI_ERR[lg]||'season page could not be read'));return null;}
+  const r=wikiPick(team,rows);
+  if(!r){why.push('Wikipedia: "'+team+'" does not match any club in the season table ('+rows.slice(0,4).map(x=>x.team).join(', ')+'…)');return null;}
+  if(isFinite(r.lat)&&isFinite(r.lon))return {lat:r.lat,lon:r.lon,name:r.stadium||'stadium',src:'Wikipedia league page'};
+  for(const q of [r.stadium&&r.place?r.stadium+', '+r.place:'',r.stadium,r.place].filter(Boolean)){
+    await nomPace();
+    try{
+      const j=await jfetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5'+(cc?'&countrycodes='+cc:'')+'&q='+encodeURIComponent(q));
+      const ok=x=>isFinite(+x.lat)&&isFinite(+x.lon),isCity=q===r.place&&q!==r.stadium;
+      const b=isCity?(j||[]).find(x=>ok(x)&&/place|boundary/i.test(x.category)):(j||[]).find(x=>ok(x)&&VENUE.test(String(x.category||'')+' '+String(x.type||'')));
+      if(b)return isCity?{lat:+b.lat,lon:+b.lon,name:r.place+' (town – stadium not found)',city:true,src:'Wikipedia league page + OpenStreetMap (town only)'}
+                        :{lat:+b.lat,lon:+b.lon,name:r.stadium,src:'Wikipedia league page + OpenStreetMap'};
+    }catch(e){why.push('Wikipedia row found, but OpenStreetMap lookup failed ('+e.message+')');}
+  }
+  why.push('Wikipedia: club found (stadium "'+(r.stadium||'?')+'", town "'+(r.place||'?')+'") but its page has no coordinates and OpenStreetMap does not know the stadium or town');
+  return null;
+}
+async function omGeocode(name,cc){
+  const j=await jfetch('https://geocoding-api.open-meteo.com/v1/search?count=10&language=en&format=json&name='+encodeURIComponent(name),12000);
+  const rs=((j&&j.results)||[]).filter(x=>isFinite(x.latitude)&&isFinite(x.longitude)&&(!cc||String(x.country_code||'').toLowerCase()===cc));
+  rs.sort((a,b)=>(b.population||0)-(a.population||0));return rs[0]||null;
+}
+async function geoTown(team,cc,lg,why){
+  const cands=[];
+  try{const rows=WIKI[lg]&&await wikiSeasonRows(lg);const r=rows&&wikiPick(team,rows);
+    if(r&&r.place)r.place.split(/[,;\/(]/).map(x=>x.trim()).filter(Boolean).forEach(x=>cands.push({name:x,from:'Wikipedia league page'}));}catch(e){}
+  try{cands.push(...await wdTowns(team,cc));}catch(e){}
+  const tc=TEAMCITY[normName(team)];if(tc)cands.push({name:tc,from:'built-in club table'});
+  const seen=new Set(),list=cands.filter(c=>{const k=wn(c.name);if(!k||seen.has(k))return false;seen.add(k);return true;});
+  if(!list.length){why.push('town: no source (Wikipedia table, Wikidata, club table) names a town for this club');return null;}
+  for(const c of list){
+    try{
+      await nomPace();
+      const j=await jfetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5'+(cc?'&countrycodes='+cc:'')+'&q='+encodeURIComponent(c.name));
+      const b=(j||[]).find(x=>isFinite(+x.lat)&&isFinite(+x.lon)&&/place|boundary/i.test(x.category||''))||(j||[]).find(x=>isFinite(+x.lat)&&isFinite(+x.lon));
+      if(b)return {lat:+b.lat,lon:+b.lon,name:c.name+' (town – stadium not found)',city:true,src:'OpenStreetMap town position; town name from '+c.from};
+    }catch(e){}
+    try{const g=await omGeocode(c.name,cc);if(g)return {lat:g.latitude,lon:g.longitude,name:c.name+' (town – stadium not found)',city:true,src:'Open-Meteo geocoding of the town; town name from '+c.from};}catch(e){}
+    if(isFinite(c.lat)&&isFinite(c.lon))return {lat:c.lat,lon:c.lon,name:c.name+' (town – stadium not found)',city:true,src:'Wikidata coordinates of the town'};
+  }
+  why.push('town: found name(s) '+list.slice(0,4).map(x=>'"'+x.name+'" ('+x.from+')').join(', ')+' but OpenStreetMap, Open-Meteo and Wikidata have no position for them');
+  return null;
+}
+async function geoStadium(team,cc,lg){
+  const nk=normName(team)+':'+(cc||'')+':'+(lg||''),key='stadium6:'+nk,fkey='stadium9f:'+nk;
+  const hit=cacheGet(key,Infinity);if(hit){if(hit.city)GEO_WHY[team]=hit.why||['only the town could be located'];return hit;}
+  const f=cacheGet(fkey,3*864e5);if(f){GEO_WHY[team]=f;return null;}
+  const why=[];let v=null;
+  const step=async(fn)=>{if(v)return;try{v=await fn();}catch(e){why.push('network error: '+e.message);}};
+  await step(()=>geoWikiLeague(team,cc,lg,why));
+  await step(()=>geoWikidata(team,cc,why));
+  await step(async()=>{const r=await geoSportsDB(team,cc);if(!r)why.push('TheSportsDB: no stadium listed for this club, or OpenStreetMap does not know it');return r;})
+  await step(async()=>{const r=await geoStadiumOSM(team,cc,true);if(!r)why.push('OpenStreetMap: no stadium found by club name');return r;})
+  if(!v){const stadiumWhy=why.slice();await step(()=>geoTown(team,cc,lg,why));if(v)v.why=stadiumWhy.concat('→ using the town instead');}
+  if(v){if(!v.src)v.src='OpenStreetMap'+(v.city?' (city only)':'');if(v.city){v.why=v.why||(why.length?why:['only the town could be located']);GEO_WHY[team]=v.why;}cacheSet(key,v);return v;}
+  GEO_WHY[team]=why;cacheSet(fkey,why);return null;
+}
+async function wxAt(lat,lon,dt){
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const past=dt.getTime()<Date.now();
+  const key='wx:'+lat.toFixed(2)+','+lon.toFixed(2)+':'+Math.floor(dt.getTime()/36e5);
+  const hit=cacheGet(key,past?Infinity:2*36e5);
+  if(hit)return hit;
+  const base=past?'https://archive-api.open-meteo.com/v1/archive':'https://api.open-meteo.com/v1/forecast';
+  const url=base+'?latitude='+lat.toFixed(4)+'&longitude='+lon.toFixed(4)
+    +'&hourly=temperature_2m,precipitation,precipitation_probability,cloud_cover,wind_speed_10m,wind_gusts_10m,weather_code'
+    +'&timezone=UTC&start_date='+iso(new Date(dt.getTime()-6*36e5))+'&end_date='+iso(new Date(dt.getTime()+30*36e5));
+  const r=await fetch(url);
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const j=await r.json(),H=j.hourly;
+  if(!H||!H.time)throw new Error('no hourly data');
+  let best=0,bd=1e15;
+  H.time.forEach((t,i)=>{const d=Math.abs(new Date(t+'Z')-dt);if(d<bd){bd=d;best=i;}});
+  const idx=[best-1,best,best+1].filter(i=>i>=0&&i<H.time.length);
+  const av=k=>H[k]?mean(idx.map(i=>H[k][i]).filter(v=>v!==null&&v!==undefined)):null;
+  const v={t:av('temperature_2m'),pr:av('precipitation'),pp:av('precipitation_probability'),cl:av('cloud_cover'),
+           w:av('wind_speed_10m'),g:av('wind_gusts_10m'),c:H.weather_code?H.weather_code[best]:null};
+  cacheSet(key,v);return v;
+}
+function playCond(wx){
+  if(!wx||wx.t==null)return 'grey';
+  const snow=(wx.c>=71&&wx.c<=77)||wx.c===85||wx.c===86, thunder=wx.c>=95, fog=wx.c===45||wx.c===48;
+  if(thunder||snow||wx.pr>=2.5||wx.w>=50||wx.t>=33||wx.t<=0)return 'red';
+  if(wx.pr>=0.5||wx.w>=30||wx.t>=30||wx.t<5||(fog&&wx.cl>=90))return 'yellow';
+  return 'green';
+}
+const COND={green:{bg:'#1f9d55',txt:'Good conditions for football'},yellow:{bg:'#e0a100',txt:'So-so conditions'},red:{bg:'#d64545',txt:'Extreme conditions – match at risk'},grey:{bg:'#6b7380',txt:'Conditions unknown'}};
+function wxPopup(f,c,wx,err){
+  if(!c)return '<span class="note">stadium not found on OpenStreetMap</span>';
+  let h='<b>'+esc(f.HomeTeam)+' – '+esc(f.AwayTeam)+'</b><br>'
+    +fmtDay(f.date)+' · '+f.date.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})
+    +'<br><span class="note">📍 '+esc(c.name||'')+'</span><br>';
+  if(wx){
+    const k=playCond(wx),C=COND[k];
+    h+='<b style="color:'+C.bg+'">● '+C.txt+'</b><br>'
+      +'<b>'+wxEmoji(wx.c)+' '+wx.t.toFixed(0)+'°C</b> ('+wxWord(wx.c)+')<br>'
+      +(wx.pr>0.2?'🌧️':'💧')+' rain '+wx.pr.toFixed(1)+' mm/h'+(wx.pp!=null?' · '+Math.round(wx.pp)+'% chance':'')+'<br>'
+      +'💨 wind '+wx.w.toFixed(0)+' km/h'+(wx.g?' · gusts '+wx.g.toFixed(0)+' km/h':'')+'<br>'
+      +(wx.cl!=null?'☁️ clouds '+Math.round(wx.cl)+'%':'')
+      +'<br><span class="note">Open-Meteo · average of the hours around kickoff</span>';
+  }else h+=err?'<span class="note">weather unavailable ('+esc(err)+')</span>':'<span class="note">weather unavailable</span>';
+  return h;
+}
+async function showMap(fixtures){
+  const run=++MAPRUN;
+  if(!fixtures||!fixtures.length){$('mapCard').hidden=true;return;}
+  if($('league').value==='DEMO'){$('mapCard').hidden=true;return;}
+  $('mapCard').hidden=false;
+  if(!window.L){$('mapStatus').textContent='Leaflet (the map library) could not be loaded – check your internet connection or ad-blocker.';return;}
+  if(!MAP){
+    MAP=L.map('map');
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(MAP);
+    MGROUP=L.layerGroup().addTo(MAP);
+    MAP.setView([50,10],4);
+  }
+  MGROUP.clearLayers();
+  {const bx=document.getElementById('mapWhy');if(bx)bx.innerHTML='';}
+  $('mapStatus').textContent='Locating stadiums (Wikipedia league page, Wikidata, OpenStreetMap)…';
+  const homes=[...new Set(fixtures.map(f=>f.HomeTeam))],coords={},cc=CC[$('league').value];
+  let gi=0;
+  await pool(homes,4,async t=>{if(run!==MAPRUN)return;coords[t]=await geoStadium(t,cc,$('league').value);
+    $('mapStatus').textContent='Locating stadiums… '+(++gi)+' / '+homes.length;});
+  if(run!==MAPRUN)return;
+  const pts=[];let done=0,fails=0;const wxErr={};
+  $('mapStatus').textContent='Fetching kickoff weather from Open-Meteo…';
+  await Promise.all(fixtures.map(async f=>{
+    const c=coords[f.HomeTeam];
+    let wx=null,err='';
+    if(c){
+      try{wx=await wxAt(c.lat,c.lon,f.date);}
+      catch(e){await new Promise(s=>setTimeout(s,1500));
+        try{wx=await wxAt(c.lat,c.lon,f.date);}catch(e2){err=e2.message;}}
+    }
+    const n=++done;
+    if(run!==MAPRUN)return;
+    $('mapStatus').textContent='Fetching kickoff weather from Open-Meteo… '+n+' / '+fixtures.length;
+    if(!c){fails++;return;}
+    if(!wx)wxErr[err||'no data']=(wxErr[err||'no data']||0)+1;
+    const ll=[c.lat,c.lon];pts.push(ll);
+    const col=COND[playCond(wx)].bg;
+    L.circleMarker(ll,{radius:9,color:'#fff',weight:2,fillColor:col,fillOpacity:0.95})
+      .bindPopup(wxPopup(f,c,wx,err)+'<br><span class="note">stadium location: '+esc(c.src||'OpenStreetMap')+'</span>',{maxWidth:300})
+      .bindTooltip(esc(f.HomeTeam)+' – '+esc(f.AwayTeam)+'<br>'+wxEmoji(wx?wx.c:99)+' '+(wx&&wx.t!=null?wx.t.toFixed(0)+'°C':''),
+        {direction:'top',offset:[0,-6]})
+      .addTo(MGROUP);
+  }));
+  if(run!==MAPRUN)return;
+  $('mapStatus').textContent=fixtures.length+' game(s) on the map · '+(fixtures.length-fails)+' stadium(s) located'
+    +(fails?' · '+fails+' game(s) could not be geocoded':'')
+    +' · click a dot for the weather around kickoff';
+  if(pts.length)MAP.fitBounds(L.latLngBounds(pts).pad(0.25));
+  let box=document.getElementById('mapWhy');
+  if(!box){box=document.createElement('div');box.id='mapWhy';box.className='status';$('mapStatus').after(box);}
+  const bad=homes.filter(t=>!coords[t]),town=homes.filter(t=>coords[t]&&coords[t].city);
+  let h='';
+  const li=(t)=>'<li><b>'+esc(t)+'</b>: '+esc((GEO_WHY[t]||['unknown reason']).filter(Boolean).join(' · '))+'</li>';
+  if(bad.length)h+='<details open><summary><b>'+bad.length+' stadium(s) could not be located – no marker on the map</b></summary><ul>'+bad.map(li).join('')+'</ul></details>';
+  if(town.length)h+='<details><summary><b>'+town.length+' team(s) shown at the town centre, not the stadium (weather is for the town)</b></summary><ul>'+town.map(li).join('')+'</ul></details>';
+  const we=Object.entries(wxErr);
+  if(we.length)h+='<details open><summary><b>Weather missing for '+we.reduce((a,x)=>a+x[1],0)+' game(s)</b></summary><ul>'+we.map(([m,n])=>'<li>'+n+' × '+esc(m==='no data'?'Open-Meteo returned no data for the kickoff hour (too far ahead or no archive yet)':'Open-Meteo: '+m)+'</li>').join('')+'</ul></details>';
+  box.innerHTML=h;
+}
+
+/* ---------- demo data (synthetic, clearly not real) ---------- */
+$('demo').onclick=()=>{
+  let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  const teams=['Alpha FC','Beta United','Gamma City','Delta Town','Epsilon SC','Zeta Rovers','Eta Athletic','Theta FC','Iota United','Kappa City','Lambda Utd','Mu Wanderers'];
+  const str=Object.fromEntries(teams.map(t=>[t,rnd()*1.6-0.8]));
+  const odds=(a,b)=>{const d=str[a]-str[b]+0.3,ph=1/(1+Math.exp(-d*1.4))*0.75,pa=(1-1/(1+Math.exp(-d*1.4)))*0.75,px=1-ph-pa;return [ph,px,pa].map(p=>(0.94/p).toFixed(2));};
+  const fm=d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const season=(start,rounds)=>{let s='Div,Date,Time,HomeTeam,AwayTeam,FTHG,FTAG,FTR,B365H,B365D,B365A\n';let d=new Date(start);
+    for(let r=0;r<rounds;r++){for(let i=0;i<teams.length;i+=2){const idx=[...teams].sort(()=>rnd()-0.5);const a=idx[i],b=idx[i+1];
+      const e=str[a]-str[b]+0.3,hg=Math.max(0,Math.round(1.4+e+(rnd()-0.5)*2.5)),ag=Math.max(0,Math.round(1.1-e+(rnd()-0.5)*2.5));
+      const o=odds(a,b);s+=`DEMO,${fm(d)},15:00,${a},${b},${hg},${ag},${hg>ag?'H':hg<ag?'A':'D'},${o.join(',')}\n`;}
+      d=new Date(d.getTime()+6*864e5);}return s;};
+  const now=new Date();let fx='Div,Date,Time,HomeTeam,AwayTeam,B365H,B365D,B365A\n';
+  for(let k=0;k<2;k++){const idx=[...teams].sort(()=>rnd()-0.5);const d=new Date(now.getTime()+(1+k*2)*864e5);
+    for(let i=0;i<teams.length;i+=2){fx+=`DEMO,${fm(d)},18:00,${idx[i]},${idx[i+1]},${odds(idx[i],idx[i+1]).join(',')}\n`;}}
+  const opt=document.createElement('option');opt.value='DEMO';opt.textContent='DEMO (synthetic)';$('league').appendChild(opt);$('league').value='DEMO';
+  store={cur:season(new Date(now.getTime()-70*864e5),10),prev:season(new Date(now.getTime()-450*864e5),20),fix:fx};
+  setStatus('Synthetic demo data – not real matches or odds.');
+  run(store.cur,store.prev,store.fix,'DEMO',4);
+};
+
+/* startup message + preview-frame warning */
+(function(){
+  let m='Ready – choose a league and press Load & analyse.';
+  try{if(window.top!==window)m+='\n⚠ This page is running inside a preview frame, which usually blocks network downloads. Download the file and open it directly in Chrome/Safari/Edge (double-click it).';}
+  catch(e){m+='\n⚠ This page is running inside a preview frame, which usually blocks network downloads. Download the file and open it directly in Chrome/Safari/Edge (double-click it).';}
+  setStatus(m);
+})();
+</script>
+<!-- ===== ADD-ON: εθνικές ομάδες + επιλογή 1/X/2 με ιστόγραμμα & value bet ===== -->
+<script>
+(function(){
+/* ---------- 1) NATIONAL TEAM COMPETITIONS (ESPN) ---------- */
+const NTS=[
+ ['WCQE','World Cup qualifiers – Europe',['fifa.worldq.uefa']],
+ ['WCQS','World Cup qualifiers – South America',['fifa.worldq.conmebol']],
+ ['WCQC','World Cup qualifiers – CONCACAF',['fifa.worldq.concacaf']],
+ ['WCQA','World Cup qualifiers – Asia',['fifa.worldq.afc']],
+ ['WCQF','World Cup qualifiers – Africa',['fifa.worldq.caf']],
+ ['EUQ','Euro qualifiers',['uefa.euroq']],
+ ['FRI','International friendlies',['fifa.friendly']],
+ ['WC','FIFA World Cup',['fifa.world']],
+ ['EURO','UEFA European Championship',['uefa.euro']],
+ ['COPA','Copa América',['conmebol.america']],
+ ['GOLD','CONCACAF Gold Cup',['concacaf.gold']],
+ ['AFCON','Africa Cup of Nations',['caf.nations']],
+ ['AFCONQ','Africa Cup of Nations qualifiers',['caf.nations_qual','caf.nations.qual','caf.afcon.qual','caf.nations_qualifying']],
+ ['ASIA','AFC Asian Cup',['afc.asian.cup']]
+];
+const NTSET=new Set(NTS.map(x=>x[0]));
+const sel=document.getElementById('league');
+const og=document.createElement('optgroup');og.label='National teams (ESPN)';
+NTS.forEach(([k,n,c])=>{ESPN[k]=c;CUPS.add(k);CAL.add(k);
+  const o=document.createElement('option');o.value=k;o.textContent=n;og.appendChild(o);});
+sel.appendChild(og);
+const _showMap=showMap;
+showMap=function(f){ if(NTSET.has(document.getElementById('league').value)){document.getElementById('mapCard').hidden=true;return;} return _showMap(f); };
+
+/* ---------- 2) PICK 1 / X / 2 -> histogram + counts + value bet ---------- */
+const st=document.createElement('style');
+st.textContent='.pk{padding:2px 9px;margin-right:3px;font-weight:700;cursor:pointer}.pk.on{background:var(--acc);color:#fff;border-color:var(--acc)}'+
+ '.hg{display:flex;align-items:flex-end;gap:4px;height:170px;margin-top:8px;padding-bottom:2px}'+
+ '.hg .col{flex:1;min-width:26px;display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;height:100%;border-radius:4px;position:relative}'+
+ '.hg .col.inb{background:color-mix(in srgb,var(--acc) 14%,transparent)}'+
+ '.hg .col.me{outline:2px solid var(--cp)}'+
+ '.hg .col i{display:block;width:100%}.hg .col .t{font-size:10px;text-align:center;color:var(--mut);line-height:12px}'+
+ '.hgl{display:flex;gap:4px}.hgl div{flex:1;min-width:26px;font-size:10px;text-align:center;color:var(--mut);white-space:nowrap;overflow:hidden}'+
+ '.verdict{display:inline-block;padding:4px 12px;border-radius:999px;color:#fff;font-weight:700}'+
+ '.vb-y{background:var(--c1)}.vb-m{background:var(--cx)}.vb-n{background:var(--c2)}.vb-g{background:var(--mut)}'+
+ '.kpis{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0}.kpis div{min-width:110px}.kpis b{display:block;font-size:20px}';
+document.head.appendChild(st);
+
+const card=document.createElement('div');card.className='card';card.id='pkCard';card.hidden=true;
+document.getElementById('tblCard').after(card);
+
+let LAST=null,PK=null;
+const BINS=[1,1.3,1.5,1.7,1.9,2.1,2.3,2.6,3,3.5,4,5,6,8,12,1e9];
+const binOf=o=>{for(let i=0;i<BINS.length-1;i++)if(o<BINS[i+1])return i;return BINS.length-2;};
+const binLab=i=>i===BINS.length-2?BINS[i]+'+':BINS[i]+'–'+BINS[i+1];
+const LET=['1','X','2'];
+function wilsonLow(h,n){if(!n)return 0;const z=1.96,p=h/n,d=1+z*z/n;
+  return (p+z*z/(2*n)-z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n)))/d;}
+
+function renderPick(){
+  if(!PK||!LAST||!LAST.items[PK.i]){card.hidden=true;return;}
+  const res=LAST,it=res.items[PK.i],k=PK.k,odd=it.o[k],f=it.fx,L=LET[k];
+  const est=res.estHist||f.est,tl=est?'~':'';
+  const rows=res.past.map((m,j)=>({m,r:res.lab[j],o:m.o[k]}));
+  const H=BINS.slice(0,-1).map(()=>[0,0,0]);
+  rows.forEach(x=>H[binOf(x.o)][x.r]++);
+  const mx=Math.max(1,...H.map(b=>b[0]+b[1]+b[2])),mine=binOf(odd);
+  const lo=odd*(1-PK.tol),hi=odd*(1+PK.tol);
+  const band=rows.filter(x=>x.o>=lo&&x.o<=hi);
+  const cnt=[0,0,0];band.forEach(x=>cnt[x.r]++);
+  const n=band.length,hits=cnt[k],rate=n?hits/n:0;
+  const flat=n?band.reduce((s,x)=>s+(x.r===k?x.o:0),0)/n-1:0;
+  const roi=rate*odd-1;
+  const low=wilsonLow(hits,n);
+  let vcls='vb-g',vtxt='Not enough similar games';
+  if(n>=5){
+    if(roi>0){
+      if(n>=20&&low*odd>1){vcls='vb-y';vtxt='VALUE BET (strong)';}
+      else if(n>=20){vcls='vb-y';vtxt='VALUE BET';}
+      else{vcls='vb-m';vtxt='Possible value – small sample';}
+    }else{vcls='vb-n';vtxt='No value';}
+  }
+  const col=['var(--c1)','var(--cx)','var(--c2)'];
+  let h=`<h2 style="font-size:16px;margin:0 0 4px">Pick <span class="pill p${L}">${L}</span> – ${esc(f.HomeTeam)} – ${esc(f.AwayTeam)}</h2>
+   <div class="note">Odd of ${L} for this game: <b>${tl}${odd.toFixed(2)}</b> (implied probability ${(100/odd).toFixed(0)}%, margin included) · ${fmtD(f.date)}</div>
+   <div class="row" style="margin:10px 0"><div><label>Same odd means within</label>
+   <select id="pkTol">${[0.03,0.05,0.10,0.15,0.25].map(t=>`<option value="${t}"${t===PK.tol?' selected':''}>±${Math.round(t*100)}% (${(odd*(1-t)).toFixed(2)} – ${(odd*(1+t)).toFixed(2)})</option>`).join('')}</select></div></div>`;
+  if(est)h+='<div class="note" style="margin-bottom:8px">⚠ These odds are model estimates (~), not real bookmaker odds, so the value-bet verdict is only indicative.</div>';
+  h+=`<div class="kpis">
+    <div><span class="note">Games with a similar odd</span><b>${n}</b></div>
+    <div><span class="note">Came 1</span><b style="color:var(--c1)">${cnt[0]}${n?` <small>(${(100*cnt[0]/n).toFixed(0)}%)</small>`:''}</b></div>
+    <div><span class="note">Came X</span><b style="color:var(--cx)">${cnt[1]}${n?` <small>(${(100*cnt[1]/n).toFixed(0)}%)</small>`:''}</b></div>
+    <div><span class="note">Came 2</span><b style="color:var(--c2)">${cnt[2]}${n?` <small>(${(100*cnt[2]/n).toFixed(0)}%)</small>`:''}</b></div>
+    <div><span class="note">Pick ${L} hit rate</span><b>${n?(rate*100).toFixed(1)+'%':'–'}</b></div>
+    <div><span class="note">Fair odd (n ÷ hits)</span><b>${hits?(n/hits).toFixed(2):'–'}</b></div>
+    <div><span class="note">Expected return at ${tl}${odd.toFixed(2)}</span><b>${n?(roi>0?'+':'')+(roi*100).toFixed(1)+'%':'–'}</b></div>
+    <div><span class="note">1 unit on each of them</span><b>${n?(flat>0?'+':'')+(flat*100).toFixed(1)+'%':'–'}</b></div></div>
+   <div><span class="verdict ${vcls}">${vtxt}</span>
+   <span class="note"> value = hit rate × odd &gt; 1, i.e. hit rate (${n?(rate*100).toFixed(1):'–'}%) above the ${(100/odd).toFixed(1)}% the odd implies${n>=5?` · 95% range of the hit rate ${(low*100).toFixed(0)}%–${(Math.min(1,(()=>{const z=1.96,p=rate,d=1+z*z/n;return (p+z*z/(2*n)+z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n)))/d;})())*100).toFixed(0)}%`:''}</span></div>
+   <div class="note" style="margin-top:10px"><b>Histogram 2 – how the ${n} games with a similar odd (${(odd*(1-PK.tol)).toFixed(2)} – ${(odd*(1+PK.tol)).toFixed(2)}) ended</b></div>
+   <div class="hg2">${[0,1,2].map(r=>`<div class="c${r===k?' pick':''}"><div class="t">${cnt[r]}${n?' · '+(100*cnt[r]/n).toFixed(0)+'%':''}</div><i style="height:${(cnt[r]/Math.max(1,...cnt)*110).toFixed(1)}px;background:${col[r]}"></i><div class="l">${LET[r]}</div></div>`).join('')}</div>
+   <div class="note" style="margin-top:10px"><b>Histogram:</b> all ${rows.length} past games grouped by the odd of ${L}; each bar is split by what really happened (green 1, yellow X, red 2). Purple outline = this game's odd, shaded = games counted above.</div>
+   <div class="hg">`;
+  H.forEach((b,i)=>{
+    const tot=b[0]+b[1]+b[2],inb=band.some(x=>binOf(x.o)===i);
+    h+=`<div class="col${inb?' inb':''}${i===mine?' me':''}" title="odd ${binLab(i)}: ${tot} games (1: ${b[0]}, X: ${b[1]}, 2: ${b[2]})"><div class="t">${tot||''}</div>`+
+       [0,1,2].map(r=>b[r]?`<i style="height:${(b[r]/mx*130).toFixed(1)}px;background:${col[r]}"></i>`:'').join('')+'</div>';
+  });
+  h+='</div><div class="hgl">'+H.map((_,i)=>`<div>${binLab(i)}</div>`).join('')+'</div>';
+  const sorted=band.slice().sort((a,b)=>a.o-b.o||a.m.date-b.m.date);
+  h+=`<details style="margin-top:12px"${n&&n<=40?' open':''}><summary><b>The ${n} games with a similar odd of ${L}</b> <span class="note">(sorted from the smallest to the biggest odd · click any column title to sort)</span></summary><div class="scroll"><table><tr><th>Date</th><th>Game</th><th>Result</th><th class="n sa">Odd ${L}</th><th class="n">1</th><th class="n">X</th><th class="n">2</th></tr>`+
+    sorted.map(({m,r})=>`<tr><td>${m.date.toLocaleDateString('en-GB')}</td><td>${esc(m.home)} ${m.hg}–${m.ag} ${esc(m.away)}</td><td>${pillOf(LET[r])}</td><td class="n"><b>${tl}${m.o[k].toFixed(2)}</b></td><td class="n">${tl}${m.o[0].toFixed(2)}</td><td class="n">${tl}${m.o[1].toFixed(2)}</td><td class="n">${tl}${m.o[2].toFixed(2)}</td></tr>`).join('')+
+    '</table></div></details><p class="note">Past results do not guarantee anything; with few games the verdict is unreliable. Gamble responsibly.</p>';
+  card.innerHTML=h;card.hidden=false;
+  document.getElementById('pkTol').onchange=e=>{PK.tol=+e.target.value;renderPick();};
+}
+
+function enhance(){
+  const t=document.getElementById('tbl');if(!t||!t.rows.length)return;
+  t.rows[0].insertAdjacentHTML('beforeend','<th>Check a pick</th>');
+  t.querySelectorAll('tr.up').forEach(tr=>{
+    const i=tr.dataset.i;
+    tr.insertAdjacentHTML('beforeend','<td>'+LET.map((l,k)=>`<button class="pk" data-i="${i}" data-k="${k}">${l}</button>`).join('')+'</td>');
+  });
+}
+const closePick=()=>{PK=null;card.hidden=true;};
+document.getElementById('league').addEventListener('change',closePick);
+document.getElementById('go').addEventListener('click',closePick,true);
+document.getElementById('demo').addEventListener('click',closePick,true);
+const _render=render;
+render=function(res){
+  _render(res);LAST=res;PK=null;card.hidden=true;enhance();
+};
+document.getElementById('tbl').addEventListener('click',e=>{
+  const b=e.target.closest('button.pk');if(!b)return;
+  e.stopImmediatePropagation();
+  PK={i:+b.dataset.i,k:+b.dataset.k,tol:PK?PK.tol:0.05};
+  document.querySelectorAll('#tbl button.pk').forEach(x=>x.classList.toggle('on',x.dataset.i===b.dataset.i&&x.dataset.k===b.dataset.k));
+  renderPick();card.scrollIntoView({behavior:'smooth',block:'start'});
+},true);
+})();
+</script>
+<!-- ===== ADD-ON 2: extra leagues of football-data.co.uk (Pinnacle odds) ===== -->
+<script>
+(function(){
+const XL=[['ARG','Argentina – Primera División','arg.1','ar'],['AUT','Austria – Bundesliga','aut.1','at'],['BRA','Brazil – Série A','bra.1','br'],
+ ['CHN','China – Super League','chn.1','cn'],['DNK','Denmark – Superliga','den.1','dk'],['FIN','Finland – Veikkausliiga','fin.1','fi'],
+ ['IRL','Ireland – Premier Division','irl.1','ie'],['JPN','Japan – J-League','jpn.1','jp'],['MEX','Mexico – Liga MX','mex.1','mx'],
+ ['NOR','Norway – Eliteserien','nor.1','no'],['POL','Poland – Ekstraklasa','pol.1','pl'],['ROU','Romania – Liga 1','rou.1','ro'],
+ ['RUS','Russia – Premier League','rus.1','ru'],['SWE','Sweden – Allsvenskan','swe.1','se'],['SWZ','Switzerland – Super League','sui.1','ch'],['USA','USA – MLS','usa.1','us']];
+const XKEYS=new Set(XL.map(x=>'X_'+x[0]));
+const og=document.createElement('optgroup');og.label='Extra leagues (football-data, Pinnacle odds)';
+XL.forEach(([c,n,slug,cc])=>{ESPN['X_'+c]=[slug];CC['X_'+c]=cc;
+  const o=document.createElement('option');o.value='X_'+c;o.textContent=n;og.appendChild(o);});
+document.getElementById('league').appendChild(og);
+
+const OSETS=[['PSCH','PSCD','PSCA'],['PH','PD','PA'],['AvgCH','AvgCD','AvgCA'],['AvgH','AvgD','AvgA'],['B365CH','B365CD','B365CA'],['B365H','B365D','B365A']];
+const oddsOf=r=>{for(const s of OSETS){const o=s.map(k=>num(r[k]));if(o.every(v=>v>1))return o;}return null;};
+function toPlayedX(rows){
+  return rows.map(r=>{
+    const home=r.Home||r.HomeTeam,away=r.Away||r.AwayTeam,date=parseDate(r.Date,r.Time);
+    const hg=num(r.HG!==undefined?r.HG:r.FTHG),ag=num(r.AG!==undefined?r.AG:r.FTAG);
+    if(!date||!home||!away||isNaN(hg)||isNaN(ag))return null;
+    const o=oddsOf(r);
+    return {date,home,away,hg,ag,o,p:o?implied(o[0],o[1],o[2]):null,season:r.Season||''};
+  }).filter(Boolean).sort((a,b)=>a.date-b.date);
+}
+async function extraGo(key,days){
+  const code=key.slice(2),title=document.getElementById('league').selectedOptions[0].textContent;
+  try{
+    setProg(0.02,'Downloading '+title+' from football-data…');
+    const txt=await getCSV('new/'+code+'.csv',v=>setProg(0.02+0.5*v,'Downloading '+title+' from football-data… '+Math.round(v*100)+'%'),30*60e3);
+    const all=toPlayedX(parseCSV(txt));
+    if(!all.length)throw new Error('The file new/'+code+'.csv was read but no finished games were found (column names may have changed).');
+    const seas={};all.forEach(m=>{const s=seas[m.season]||(seas[m.season]={max:0,list:[]});s.max=Math.max(s.max,+m.date);s.list.push(m);});
+    const ord=Object.keys(seas).sort((a,b)=>seas[b].max-seas[a].max);
+    const curPlayed=seas[ord[0]].list,prevPlayed=ord[1]?seas[ord[1]].list:[];
+    const stRows=standings(curPlayed);
+    renderStandings(stRows,title);renderMatrix(curPlayed,stRows,title);renderGoals(curPlayed,stRows,title);setupScore(curPlayed,stRows);
+    const past=prevPlayed.concat(curPlayed).filter(m=>m.o).sort((a,b)=>a.date-b.date);
+    const now=new Date(),day0=new Date(now.getFullYear(),now.getMonth(),now.getDate()),end=new Date(now.getTime()+days*864e5);
+    setProg(0.6,'Downloading upcoming fixtures from ESPN…');
+    const fixtures=[];let note='';
+    try{
+      const slug=await espnSlug(key),ev=await espnRange(slug,day0,end,10*60e3);
+      const up=ev.filter(m=>!m.played&&m.t>=day0&&m.t<=end);
+      await pool(up,8,async m=>{try{const r=await eventOdds(slug,m.id,false);if(r){m.o=r.o;m.src=r.src;}}catch(e){}});
+      const known=[...new Set(all.filter(m=>m.date>=new Date(now.getTime()-700*864e5)).flatMap(m=>[m.home,m.away]))];
+      const prob=poissonProbs(prevPlayed,curPlayed);
+      for(const m of up){
+        const h=matchTeam(m.home,known),a=matchTeam(m.away,known),f={date:new Date(m.t),HomeTeam:h,AwayTeam:a};
+        if(m.o){f.est=false;[f.B365H,f.B365D,f.B365A]=m.o.map(v=>v.toFixed(2));}
+        else{const p=prob(h,a);f.est=true;f.B365H=(1/(p[0]*1.06)).toFixed(2);f.B365D=(1/(p[1]*1.06)).toFixed(2);f.B365A=(1/(p[2]*1.06)).toFixed(2);}
+        fixtures.push(f);
+      }
+      fixtures.sort((a,b)=>a.date-b.date);
+    }catch(e){note=' Upcoming fixtures could not be loaded from ESPN ('+e.message+').';}
+    showMap(fixtures);
+    const realUp=fixtures.filter(f=>!f.est).length;
+    const info=`History from football-data.co.uk (${past.length} games with odds, season ${ord[0]||'?'}${ord[1]?' + '+ord[1]:''}; odds = Pinnacle/market average, not bet365). Upcoming games from ESPN: ${realUp} with ESPN odds, ${fixtures.length-realUp} with model estimates (~).`+note+' ';
+    const res=analyseKNN(fixtures,past,+document.getElementById('knn').value,0,document.getElementById('wmode').value,document.getElementById('axscale').value==='equal');
+    res.estHist=false;
+    if(res.error){renderUpcomingBasic(fixtures);setStatus(info+res.error);}
+    else{setStatus(info+`${res.items.length} upcoming matches compared with ${res.past.length} past games.`);render(res);}
+    setTimeout(()=>{document.getElementById('prog').hidden=true;},600);
+  }catch(e){document.getElementById('prog').hidden=true;setStatus('Could not download the data.\n'+e.message);}
+}
+const go=document.getElementById('go'),orig=go.onclick;
+go.onclick=async function(ev){
+  const lg=document.getElementById('league').value;
+  if(!XKEYS.has(lg))return orig.call(this,ev);
+  go.disabled=true;['stCard','mxCard','gcCard','scCard','outCard','tblCard','mapCard','pkCard'].forEach(i=>{const e=document.getElementById(i);if(e)e.hidden=true;});
+  try{await extraGo(lg,+document.getElementById('days').value);}finally{go.disabled=false;}
+};
+})();
+</script>
+
+<!-- ===== ADD-ON 3: UEFA Nations League split into League A / B / C / D and their groups ===== -->
+<script>
+(function(){
+const TIERS=[['A',4],['B',4],['C',4],['D',2]];
+const nk=s=>{s=String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\[[^\]]*\]/g,'').replace(/\([^)]*\)/g,'').replace(/&/g,' ').replace(/[^a-z0-9]+/g,' ').replace(/\band\b/g,' ').replace(/\s+/g,' ').trim();
+  const A={'czechia':'czech republic','turkiye':'turkey','republic of ireland':'ireland','cape verde':'cabo verde'};return A[s]||s;};
+const NLKEY=/^UNL_[A-D]\d$/;
+const lg=document.getElementById('league');
+const old=[...lg.options].find(o=>o.value==='UNL');if(old)old.remove();
+TIERS.forEach(([L,n])=>{
+  const og=document.createElement('optgroup');og.label='UEFA Nations League '+L+' (ESPN + Wikipedia groups)';
+  for(let g=1;g<=n;g++){const k='UNL_'+L+g;ESPN[k]=['uefa.nations'];CUPS.add(k);CAL.add(k);
+    const o=document.createElement('option');o.value=k;o.textContent='UEFA Nations League '+L+' – Group '+L+g;og.appendChild(o);}
+  lg.insertBefore(og,lg.querySelector('optgroup:last-of-type'));
+});
+let NL=null;
+const inG=m=>NL.grp.has(nk(m.home))&&NL.grp.has(nk(m.away));
+const editionStart=()=>{const n=new Date(),y=n.getMonth()>=5?n.getFullYear():n.getFullYear()-1;return y-((((y-2024)%2)+2)%2);};
+async function nlGroups(L){
+  const start=editionStart(),ck='nlgroups:'+start+L,hit=cacheGet(ck,12*36e5);if(hit)return hit;
+  const title=start+'–'+String((start+1)%100).padStart(2,'0')+' UEFA Nations League '+L;
+  const j=await jfetch('https://en.wikipedia.org/w/api.php?action=parse&format=json&origin=*&redirects=1&prop=text&disableeditsection=1&page='+encodeURIComponent(title),20000);
+  const html=j&&j.parse&&j.parse.text&&j.parse.text['*'];if(!html)throw new Error('Wikipedia has no page called "'+title+'"');
+  const doc=new DOMParser().parseFromString(html,'text/html'),groups=[];
+  for(const tb of doc.querySelectorAll('table.wikitable')){
+    const trs=[...tb.querySelectorAll('tr')];if(trs.length<4)continue;
+    const head=[...trs[0].children].map(c=>c.textContent.trim()),iT=head.findIndex(h=>/^Team/i.test(h));
+    if(iT<0||!head.some(h=>/^Pld/i.test(h))||head.some(h=>/^Grp/i.test(h)))continue;
+    const teams=[];for(const tr of trs.slice(1)){const c=tr.children;if(c.length>iT&&c[iT].textContent.trim())teams.push(c[iT].textContent.trim());}
+    if(teams.length>=3&&teams.length<=5)groups.push(teams);
+  }
+  if(!groups.length)throw new Error('the Wikipedia page "'+title+'" has no group standings tables');
+  cacheSet(ck,groups);return groups;
+}
+const _er=espnRange;
+espnRange=async function(slug,from,to,ttl){
+  const ev=await _er.call(this,slug,from,to,ttl);
+  return (NL&&slug==='uefa.nations')?ev.filter(m=>NL.tier.has(nk(m.home))&&NL.tier.has(nk(m.away))):ev;
+};
+const _sm=showMap;showMap=function(f){if(NLKEY.test(lg.value)){document.getElementById('mapCard').hidden=true;return;}return _sm(f);};
+const _st=standings;standings=function(p){return _st(NL?p.filter(inG):p);};
+const _ss=setupScore;setupScore=function(p,t){return _ss(NL?p.filter(inG):p,t);};
+const _ak=analyseKNN;analyseKNN=function(f,...r){return _ak(NL?f.filter(x=>inG({home:x.HomeTeam,away:x.AwayTeam})):f,...r);};
+const _ub=renderUpcomingBasic;renderUpcomingBasic=function(f){return _ub(NL?f.filter(x=>inG({home:x.HomeTeam,away:x.AwayTeam})):f);};
+const prevClick=document.getElementById('go').onclick,go=document.getElementById('go');
+go.onclick=async function(ev){
+  const key=lg.value;NL=null;
+  if(!NLKEY.test(key))return prevClick.call(this,ev);
+  go.disabled=true;setProg(0.02,'Reading the groups of the Nations League from Wikipedia…');
+  try{
+    const L=key[4],n=+key.slice(5),groups=await nlGroups(L);
+    if(!groups[n-1])throw new Error('Wikipedia lists only '+groups.length+' group(s) in League '+L+', not Group '+L+n+'.');
+    NL={tier:new Set(groups.flat().map(nk)),grp:new Set(groups[n-1].map(nk)),teams:groups[n-1]};
+  }catch(e){document.getElementById('prog').hidden=true;setStatus('Could not read the Nations League groups.\n'+e.message);go.disabled=false;return;}
+  try{await prevClick.call(this,ev);}finally{
+    if(NL)document.getElementById('status').textContent+='\nGroup '+key.slice(4)+': '+NL.teams.join(', ')+'. The odds comparison uses all games of League '+key[4]+' as history.';
+  }
+};
+})();
+</script>
+
+<!-- ===== ADD-ON 4: ESPN data saved in the browser as CSV (incremental updates) + sortable tables + 1/X/2 histogram on dots ===== -->
+<script>
+(function(){
+const FRESH=10*60e3,DAY=864e5;
+const DBP=new Promise(res=>{try{const r=indexedDB.open('oddsdata',1);r.onupgradeneeded=()=>r.result.createObjectStore('csv');r.onsuccess=()=>res(r.result);r.onerror=()=>res(null);r.onblocked=()=>res(null);}catch(e){res(null);}});
+const idb=(mode,fn)=>DBP.then(db=>new Promise(res=>{if(!db)return res(undefined);try{const rq=fn(db.transaction('csv',mode).objectStore('csv'));rq.onsuccess=()=>res(rq.result===undefined?null:rq.result);rq.onerror=()=>res(undefined);}catch(e){res(undefined);}}));
+async function dbGet(k){const v=await idb('readonly',s=>s.get(k));if(v!==undefined)return v;try{return JSON.parse(localStorage.getItem('csv:'+k)||'null');}catch(e){return null;}}
+async function dbSet(k,v){const r=await idb('readwrite',s=>s.put(v,k));if(r===undefined){try{localStorage.setItem('csv:'+k,JSON.stringify(v));}catch(e){}}}
+async function dbKeys(){const r=await idb('readonly',s=>s.getAllKeys());if(Array.isArray(r))return r;const o=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith('csv:'))o.push(k.slice(4));}}catch(e){}return o;}
+async function dbDel(k){await idb('readwrite',s=>s.delete(k));try{localStorage.removeItem('csv:'+k);}catch(e){}}
+
+const HDR='id,t,home,away,played,hg,ag,o1,oX,o2,src,oc,oat';
+const q=v=>{v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+const toCsv=rows=>HDR+'\n'+rows.map(r=>[r.id,r.t,r.home,r.away,r.played?1:0,r.hg==null?'':r.hg,r.ag==null?'':r.ag,r.o?r.o[0]:'',r.o?r.o[1]:'',r.o?r.o[2]:'',r.src||'',r.oc?1:0,r.oat||''].map(q).join(',')).join('\n');
+const fromCsv=t=>parseCSV(t).map(r=>({id:r.id,t:+r.t,home:r.home,away:r.away,played:r.played==='1',hg:r.hg===''?null:+r.hg,ag:r.ag===''?null:+r.ag,
+  o:r.o1?[+r.o1,+r.oX,+r.o2]:null,src:r.src||'',oc:r.oc==='1',oat:+r.oat||0}));
+const nlKeyOf=lg=>{const m=/^UNL_([A-D])\d$/.exec(lg);return m?'UNL_'+m[1]:lg;};
+window.__stor=null;
+
+fetchCup=async function(lg,startYear,days,onP){
+  const key='espn:'+nlKeyOf(lg),st=await dbGet(key),slug=(st&&st.slug)||await espnSlug(lg),now=new Date(),day0=new Date(now.getFullYear(),now.getMonth(),now.getDate()),end=new Date(now.getTime()+days*DAY);
+  const cal=CAL.has(lg),Y=now.getMonth()>=2?now.getFullYear():now.getFullYear()-1;
+  const prevFrom=cal?new Date(Y-1,7,1):new Date(startYear-1,8,1),prevTo=cal?new Date(Y-1,11,31):new Date(startYear,5,15),curFrom=cal?new Date(Y,0,1):new Date(startYear,8,1);
+  let rows=new Map(),meta={from:+prevFrom,to:0,updated:0};
+  if(st&&st.csv){try{fromCsv(st.csv).forEach(r=>rows.set(r.id,r));meta={from:st.from,to:st.to,updated:st.updated};}catch(e){rows=new Map();meta={from:+prevFrom,to:0,updated:0};}}
+  const errs=[];let failed=0,total=0,oerr=0,syncFrom=null;
+  const covered=meta.updated>0&&meta.from<=+prevFrom;
+  if(!covered)syncFrom=prevFrom;
+  else if(Date.now()-meta.updated>=FRESH||+end>meta.to+DAY){
+    const open=[...rows.values()].filter(r=>!r.played&&r.t<Date.now()).map(r=>r.t);
+    syncFrom=new Date(Math.min(+day0,...open));if(syncFrom<prevFrom)syncFrom=prevFrom;
+  }
+  if(syncFrom)syncFrom=new Date(syncFrom.getFullYear(),syncFrom.getMonth(),syncFrom.getDate());
+  const segs=[];
+  if(syncFrom)for(let d=new Date(syncFrom);d<=end;d=new Date(d.getTime()+14*DAY))segs.push({from:new Date(d),to:new Date(Math.min(d.getTime()+13*DAY,end.getTime()))});
+  const fetched=new Set();let done=0;
+  await pool(segs,3,async s=>{
+    total++;
+    try{for(const e of await espnRange(slug,s.from,s.to,1)){fetched.add(e.id);const o=rows.get(e.id);
+        rows.set(e.id,{id:e.id,t:e.t,home:e.home,away:e.away,played:e.played,hg:e.hg,ag:e.ag,o:o?o.o:null,src:o?o.src:'',oc:o?o.oc:false,oat:o?o.oat:0});}}
+    catch(e){failed++;errs.push(ymd(s.from)+': '+e.message);}
+    onP(0.5*(++done/segs.length),'matches');});
+  if(segs.length&&!failed)for(const [id,r] of rows)
+    if(!r.played&&!fetched.has(id)&&r.t>=+syncFrom+DAY&&r.t<=+end-DAY)rows.delete(id);
+  for(const [id,r] of rows)if(r.t<+prevFrom)rows.delete(id);
+  const need=[...rows.values()].filter(r=>r.id&&(r.played?!r.oc:(r.t>=+day0&&r.t<=+end&&(!r.oc||Date.now()-r.oat>30*60e3))));
+  let od=0;
+  await pool(need,8,async r=>{
+    try{const x=await eventOdds(slug,r.id,r.played);r.oc=true;r.oat=Date.now();if(x){r.o=x.o;r.src=x.src;}}catch(e){oerr++;}
+    onP(0.5+0.5*(++od/need.length),'odds');});
+  if(!segs.length&&!need.length)onP(1,'odds');
+  if(rows.size){
+    const ok=!failed&&(segs.length||covered);
+    await dbSet(key,{slug,csv:toCsv([...rows.values()].sort((a,b)=>a.t-b.t)),from:ok?Math.min(meta.from,+prevFrom):meta.from,to:ok?Math.max(meta.to,+end):meta.to,
+      updated:(segs.length&&!failed)?Date.now():meta.updated});
+  }
+  window.__stor={network:segs.length>0||need.length>0,updated:(segs.length&&!failed)?Date.now():meta.updated,games:rows.size,windows:segs.length,odds:need.length};
+  const toM=r=>({id:r.id,date:new Date(r.t),home:r.home,away:r.away,played:r.played,hg:r.hg,ag:r.ag,o:r.o||undefined,src:r.src});
+  const all=[...rows.values()];
+  return {prev:all.filter(r=>r.t>=+prevFrom&&r.t<=+prevTo+DAY).map(toM),cur:all.filter(r=>r.t>=+curFrom&&r.t<=+end+DAY).map(toM),
+    errs,failed,total,oddsFailed:oerr,oddsTotal:need.length};
+};
+
+const anchor=document.getElementById('demo').parentElement;
+const box=document.createElement('div');
+box.innerHTML='<button id="svCsv" title="Download the saved ESPN data of this competition as a CSV file">Saved CSV</button> <button id="svClear" title="Forget everything saved in this browser">Clear saved data</button>';
+anchor.after(box);
+document.getElementById('svClear').onclick=async()=>{const ks=(await dbKeys()).filter(k=>/^espn:/.test(k));await Promise.all(ks.map(dbDel));
+  setStatus(ks.length?'Saved data deleted for '+ks.length+' competition(s). The next load will ask ESPN again.':'There was no saved data.');};
+document.getElementById('svCsv').onclick=async()=>{
+  const lg=document.getElementById('league').value,st=await dbGet('espn:'+nlKeyOf(lg));
+  if(!st||!st.csv){setStatus('Nothing saved yet for this competition (data is saved after a load from ESPN).');return;}
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([st.csv],{type:'text/csv'}));a.download=nlKeyOf(lg)+'.csv';document.body.appendChild(a);a.click();a.remove();
+};
+const prevGo=document.getElementById('go').onclick;
+document.getElementById('go').onclick=async function(ev){
+  window.__stor=null;
+  try{return await prevGo.call(this,ev);}
+  finally{const s=window.__stor;if(s){const t=new Date(s.updated).toLocaleString('en-GB');
+    document.getElementById('status').textContent+='\n'+(s.network?`Saved in this browser as CSV (${s.games} games, last full update ${t}); ESPN was asked for ${s.windows} date window(s) and ${s.odds} game odds.`
+      :`Loaded from the CSV saved in this browser (${s.games} games, updated ${t}) – ESPN was not contacted.`);}}
+};
+
+const st=document.createElement('style');
+st.textContent='#tbl th,#stTbl th,#pkCard table th,#dotInfo table th,.hist table th{cursor:pointer;user-select:none}'+
+ 'th.sa::after{content:" ▲";font-size:9px}th.sd::after{content:" ▼";font-size:9px}'+
+ '.hg2{display:flex;gap:14px;align-items:flex-end;height:150px;max-width:360px;margin-top:6px}'+
+ '.hg2 .c{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;border-radius:6px;padding:0 2px}'+
+ '.hg2 .c.pick{outline:2px solid var(--cp)}.hg2 .c i{display:block;width:70%;border-radius:4px 4px 0 0}.hg2 .t{font-size:11px;color:var(--mut);white-space:nowrap}.hg2 .l{font-weight:700}'+
+ '.strip{display:flex;flex-wrap:wrap;gap:2px;margin-top:6px}.strip span{width:12px;height:12px;border-radius:2px;display:block}';
+document.head.appendChild(st);
+function cellKey(td){
+  const t=(td.dataset.sort!==undefined?td.dataset.sort:td.textContent).trim();
+  const d=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(t);if(d)return +new Date(+d[3],+d[2]-1,+d[1]);
+  const lead=/^~?(-?\d+(?:\.\d+)?)\s*(?:%|[\/·]|$)/.exec(t);
+  if(lead)return +lead[1];
+  return t.toLowerCase();
+}
+document.addEventListener('click',e=>{
+  const th=e.target.closest('th');if(!th||!th.closest('table'))return;
+  const tb=th.closest('table');
+  if(!tb.matches('#tbl,#stTbl,#pkCard table,#dotInfo table,.hist table'))return;
+  const body=tb.tBodies[0]||tb,hdr=th.parentElement;if(body.rows[0]!==hdr||hdr.querySelector('td'))return;
+  const rows=[...body.rows].slice(1);if(!rows.length)return;
+  rows.forEach((r,i)=>{if(r.dataset.oi===undefined)r.dataset.oi=i;});
+  const idx=th.cellIndex,asc=!th.classList.contains('sa');
+  [...hdr.cells].forEach(c=>c.classList.remove('sa','sd'));th.classList.add(asc?'sa':'sd');
+  const dateCol=tb.id==='tbl'&&idx===0;
+  const key=r=>dateCol?+r.dataset.oi:cellKey(r.cells[idx]||document.createElement('td'));
+  rows.sort((a,b)=>{const x=key(a),y=key(b);let c;
+    if(typeof x==='number'&&typeof y==='number')c=x-y;else if(typeof x==='number')c=-1;else if(typeof y==='number')c=1;else c=String(x).localeCompare(String(y),undefined,{numeric:true});
+    return (asc?c:-c)||(a.dataset.oi-b.dataset.oi);});
+  rows.forEach(r=>body.appendChild(r));
+});
+
+const _ps=plotSelect;
+plotSelect=function(p){
+  _ps(p);
+  if(p&&p.kind==='up'&&PLOT){
+    const it=PLOT.res.items[p.i],cnt=it.cnt,n=cnt[0]+cnt[1]+cnt[2],mx=Math.max(1,...cnt),col=['var(--c1)','var(--cx)','var(--c2)'];
+    document.getElementById('dotInfo').insertAdjacentHTML('beforeend','<div class="note" style="margin-top:12px"><b>Histogram – how the '+n+' nearest past games ended</b></div><div class="hg2">'+
+      [0,1,2].map(r=>`<div class="c"><div class="t">${cnt[r]}${n?' · '+(100*cnt[r]/n).toFixed(0)+'%':''}</div><i style="height:${(cnt[r]/mx*110).toFixed(1)}px;background:${col[r]}"></i><div class="l">${['1','X','2'][r]}</div></div>`).join('')+'</div>');
+  }
+};
+})();
+</script>
+
+<!-- ===== ADD-ON 5: stadium map for national teams ===== -->
+<script>
+(function(){
+const NTK=/^(WCQ[A-Z]|EUQ|FRI|WC|EURO|COPA|GOLD|AFCONQ?|ASIA|UNL_[A-D]\d)$/;
+const prevShow=showMap;
+let RUN=0;
+const addDays=(d,n)=>new Date(d.getTime()+n*864e5);
+
+async function venuesFor(slug,fixtures){
+  const days=new Set();
+  fixtures.forEach(f=>[-1,0,1].forEach(n=>days.add(ymd(addDays(f.date,n)))));
+  const out={};
+  for(const d of days){
+    try{
+      const j=JSON.parse(await espnGet('https://site.api.espn.com/apis/site/v2/sports/soccer/'+slug+'/scoreboard?dates='+d));
+      for(const ev of j.events||[]){
+        const c=(ev.competitions||[])[0]||{},v=c.venue,cp=c.competitors||[];
+        const h=cp.find(x=>x.homeAway==='home'),a=cp.find(x=>x.homeAway==='away');
+        if(h&&a&&h.team&&a.team&&v&&v.fullName)
+          out[(h.team.displayName||h.team.name)+'|'+(a.team.displayName||a.team.name)]=
+            {name:v.fullName,city:v.address&&v.address.city,country:v.address&&v.address.country};
+      }
+    }catch(e){}
+  }
+  return out;
+}
+
+async function geoVenue(v){
+  const key='ntv1:'+v.name+'|'+(v.city||''),hit=cacheGet(key,Infinity);
+  if(hit)return hit;
+  const base='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=';
+  const ok=x=>isFinite(+x.lat)&&isFinite(+x.lon);
+  for(const q of [[v.name,v.city].filter(Boolean).join(', '),v.name]){
+    await nomPace();
+    try{
+      const j=await jfetch(base+encodeURIComponent(q));
+      const b=(j||[]).find(x=>ok(x)&&VENUE.test(String(x.category||'')+' '+String(x.type||'')));
+      if(b){const r={lat:+b.lat,lon:+b.lon,name:v.name,src:'ESPN venue + OpenStreetMap'};cacheSet(key,r);return r;}
+    }catch(e){}
+  }
+  if(v.city){
+    await nomPace();
+    try{
+      const j=await jfetch(base+encodeURIComponent(v.city+(v.country?', '+v.country:'')));
+      const b=(j||[]).find(x=>ok(x)&&/place|boundary/i.test(x.category||''))||(j||[]).find(ok);
+      if(b){const r={lat:+b.lat,lon:+b.lon,name:v.name+' ('+v.city+' – exact stadium not found)',city:true,src:'ESPN venue + OpenStreetMap city'};cacheSet(key,r);return r;}
+    }catch(e){}
+  }
+  return null;
+}
+
+showMap=async function(fixtures){
+  const lg=document.getElementById('league').value;
+  if(!NTK.test(lg))return prevShow(fixtures);
+  const run=++RUN,stat=document.getElementById('mapStatus'),card=document.getElementById('mapCard');
+  if(!fixtures||!fixtures.length){card.hidden=true;return;}
+  card.hidden=false;
+  if(!window.L){stat.textContent='Leaflet (the map library) could not be loaded – check your internet connection or ad-blocker.';return;}
+  if(!MAP){
+    MAP=L.map('map');
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(MAP);
+    MGROUP=L.layerGroup().addTo(MAP);MAP.setView([50,10],4);
+  }
+  MGROUP.clearLayers();
+  const old=document.getElementById('mapWhy');if(old)old.innerHTML='';
+  stat.textContent='Reading the venue of each match from ESPN…';
+  let ven={};
+  try{ven=await venuesFor(await espnSlug(lg),fixtures);}catch(e){}
+  if(run!==RUN)return;
+  const pts=[],missing=[];let done=0;
+  for(const f of fixtures){
+    const v=ven[f.HomeTeam+'|'+f.AwayTeam];
+    if(!v){missing.push(f.HomeTeam+' – '+f.AwayTeam+': ESPN lists no venue yet');continue;}
+    stat.textContent='Locating stadiums… '+(++done)+' / '+fixtures.length;
+    const c=await geoVenue(v);
+    if(run!==RUN)return;
+    if(!c){missing.push(f.HomeTeam+' – '+f.AwayTeam+': "'+v.name+'" not found on OpenStreetMap');continue;}
+    let wx=null,err='';
+    try{wx=await wxAt(c.lat,c.lon,f.date);}catch(e){try{wx=await wxAt(c.lat,c.lon,f.date);}catch(e2){err=e2.message;}}
+    const ll=[c.lat,c.lon];pts.push(ll);
+    L.circleMarker(ll,{radius:9,color:'#fff',weight:2,fillColor:COND[playCond(wx)].bg,fillOpacity:0.95})
+      .bindPopup(wxPopup(f,c,wx,err)+'<br><span class="note">'+esc(c.src)+'</span>',{maxWidth:300})
+      .bindTooltip(esc(f.HomeTeam)+' – '+esc(f.AwayTeam)+'<br>'+esc(v.name)+(wx&&wx.t!=null?' · '+wxEmoji(wx.c)+' '+wx.t.toFixed(0)+'°C':''),{direction:'top',offset:[0,-6]})
+      .addTo(MGROUP);
+  }
+  if(run!==RUN)return;
+  stat.textContent=pts.length+' of '+fixtures.length+' game(s) on the map · venue from ESPN, so a changed stadium is picked up automatically · click a dot for the weather';
+  if(pts.length)MAP.fitBounds(L.latLngBounds(pts).pad(0.25));
+  let box=document.getElementById('mapWhy');
+  if(!box){box=document.createElement('div');box.id='mapWhy';box.className='status';stat.after(box);}
+  box.innerHTML=missing.length?'<details open><summary><b>'+missing.length+' game(s) without a marker</b></summary><ul>'+missing.map(m=>'<li>'+esc(m)+'</li>').join('')+'</ul></details>':'';
+};
+})();
+</script>
+
+<!-- ===== ADD-ON 6: download all games (results + odds) of the loaded championship as CSV ===== -->
+<script>
+(function(){
+let CUR=[],PAST=[],FIX=[],TITLE='';
+const _ss=setupScore;
+setupScore=function(p,t){CUR=p.slice();TITLE=document.getElementById('league').selectedOptions[0].textContent;return _ss(p,t);};
+const _ak=analyseKNN;
+analyseKNN=function(f,past,...r){PAST=past.slice();FIX=f.slice();return _ak(f,past,...r);};
+
+const sel=document.createElement('select');sel.id='dlScope';
+sel.innerHTML='<option value="cur">This season only</option><option value="both">Last + this season</option>';
+const btn=document.createElement('button');btn.id='dlAll';btn.textContent='Download all games CSV';
+btn.title='Results and odds (1 / X / 2) of every game of the loaded championship';
+document.getElementById('svClear').after(' ',sel,' ',btn);
+
+const q=v=>{v=String(v==null?'':v);return /[",\n;]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+const d2=n=>String(n).padStart(2,'0');
+const key=m=>m.home+'|'+m.away+'|'+Math.floor(+m.date/864e5);
+btn.onclick=()=>{
+  if(!CUR.length&&!PAST.length){setStatus('Load a championship first (Load & analyse), then download.');return;}
+  const both=sel.value==='both',curKeys=new Set(CUR.map(key)),rows=new Map();
+  if(both)PAST.forEach(m=>rows.set(key(m),{m,season:curKeys.has(key(m))?'this':'last'}));
+  CUR.forEach(m=>{const k=key(m);const old=rows.get(k);rows.set(k,{m:(old&&!m.o)?{...m,o:old.m.o}:m,season:'this'});});
+  const list=[...rows.values()].sort((a,b)=>a.m.date-b.m.date);
+  let csv='season,date,time,home,away,home_goals,away_goals,result,odd_1,odd_X,odd_2,played\n';
+  for(const {m,season} of list){
+    const d=m.date,res=m.hg>m.ag?'1':m.hg<m.ag?'2':'X',o=m.o||['','',''];
+    csv+=[season,d.getFullYear()+'-'+d2(d.getMonth()+1)+'-'+d2(d.getDate()),d2(d.getHours())+':'+d2(d.getMinutes()),m.home,m.away,m.hg,m.ag,res,
+      o[0]===''?'':(+o[0]).toFixed(2),o[1]===''?'':(+o[1]).toFixed(2),o[2]===''?'':(+o[2]).toFixed(2),1].map(q).join(',')+'\n';
+  }
+  FIX.forEach(f=>{const d=f.date;
+    csv+=['upcoming',d.getFullYear()+'-'+d2(d.getMonth()+1)+'-'+d2(d.getDate()),d2(d.getHours())+':'+d2(d.getMinutes()),f.HomeTeam,f.AwayTeam,'','','',f.B365H,f.B365D,f.B365A,0].map(q).join(',')+'\n';});
+  const name=(TITLE||'championship').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'')+'_'+(both?'2_seasons':'season')+'.csv';
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));a.download=name;
+  document.body.appendChild(a);a.click();a.remove();
+  setStatus(document.getElementById('status').textContent.split('\n')[0]+'\nDownloaded '+name+' ('+list.length+' played games'+(FIX.length?' + '+FIX.length+' upcoming':'')+').');
+};
+})();
+</script>
+
+<!-- ===== ADD-ON 7: highlight value bets in green in the Upcoming games table ===== -->
+<script>
+(function(){
+const TOL=0.05, MINN=20;   // same rule as the "Check a pick" card: odds within ±5%, at least 20 similar past games, hit rate × odd > 1
+const st=document.createElement('style');
+st.textContent='#tbl td.vb{background:var(--c1);color:#fff;font-weight:700}'+
+ '#tbl button.pk.vb{background:var(--c1);color:#fff;border-color:var(--c1)}'+
+ '#tbl button.pk.vb.on{outline:2px solid var(--ink)}';
+document.head.appendChild(st);
+
+function valueOf(res,it,k){
+  const odd=it.o[k],lo=odd*(1-TOL),hi=odd*(1+TOL);
+  let n=0,hits=0;
+  res.past.forEach((m,j)=>{const o=m.o[k];if(o>=lo&&o<=hi){n++;if(res.lab[j]===k)hits++;}});
+  if(n<MINN)return null;
+  const roi=hits/n*odd-1;
+  return roi>0?{n,hits,roi}:null;
+}
+function mark(res){
+  const t=document.getElementById('tbl');if(!t)return;
+  t.querySelectorAll('tr.up').forEach(tr=>{
+    const it=res.items[+tr.dataset.i];if(!it)return;
+    for(let k=0;k<3;k++){
+      const v=valueOf(res,it,k);if(!v)continue;
+      const td=tr.cells[2+k];
+      td.classList.add('vb');
+      td.title='Value bet: '+v.hits+' of '+v.n+' similar games, expected return +'+(v.roi*100).toFixed(1)+'%';
+      const b=tr.querySelector('button.pk[data-k="'+k+'"]');if(b)b.classList.add('vb');
+    }
+  });
+  const note=t.parentElement.nextElementSibling;
+  if(note&&!document.getElementById('vbLegend'))
+    note.insertAdjacentHTML('afterend','<p class="note" id="vbLegend"><span class="pill p1" style="min-width:0">green</span> odd = value bet: among past games with a similar odd (±5%, at least 20 games) the outcome came more often than the odd implies. Click the 1 / X / 2 button for the details.</p>');
+}
+function install(){
+  if(typeof render!=='function'){setTimeout(install,200);return;}
+  if(render.__vb)return;
+  const _render=render;
+  render=function(res){_render(res);mark(res);};
+  render.__vb=true;
+}
+if(document.readyState==='complete')install();else window.addEventListener('load',install);
+})();
+</script>
+
+<!-- ===== ADD-ON 8: groups by points, group badges on upcoming games, X/2 sorting + ±3% highlight, ±1% strip diagram ===== -->
+<style>
+.gb{display:inline-block;min-width:18px;text-align:center;padding:0 6px;border-radius:999px;color:#fff;font-weight:700;font-size:12px;margin-left:2px}
+.hist tr.near td{background:color-mix(in srgb,var(--c1) 30%,transparent)}
+.hist tr.near td.key{background:color-mix(in srgb,var(--c1) 55%,transparent)}
+#stripCv{height:260px}
+</style>
+<script>
+(function(){
+const GTOL=3;                       // max point difference from the first team of the group
+const LETS=['1','X','2'];
+let GM={map:new Map(),G:0};
+
+/* ---------- colours: first group green, last red, the ones in between light green -> orange ---------- */
+const hueOf=(g,G)=>G<=1?125:g===1?125:g===G?0:Math.round(75+(28-75)*((g-2)/Math.max(1,G-3)));
+const gcol=(g,G,a)=>'hsl('+hueOf(g,G)+' 65% 42%'+(a!=null?' / '+a:'')+')';
+
+/* ---------- 1) groups in the league table ---------- */
+const _rs=renderStandings;
+renderStandings=function(rows,title){
+  _rs(rows,title);
+  GM={map:new Map(),G:0};
+  if(!rows||!rows.length)return;
+  const gs=[];let start=null;
+  rows.forEach(r=>{if(start===null||r.pts<start-GTOL){gs.push([]);start=r.pts;}gs[gs.length-1].push(r);});
+  GM.G=gs.length;
+  gs.forEach((a,i)=>a.forEach(r=>GM.map.set(r.n,i+1)));
+  const t=document.getElementById('stTbl');
+  t.rows[0].insertAdjacentHTML('beforeend','<th>Group</th>');
+  const firsts=new Set(gs.map(a=>a[0].n));
+  rows.forEach((r,i)=>{
+    const tr=t.rows[i+1];if(!tr)return;
+    const g=GM.map.get(r.n);
+    tr.style.background=gcol(g,GM.G,0.20);
+    tr.insertAdjacentHTML('beforeend','<td><span class="gb" style="background:'+gcol(g,GM.G)+'">'+g+'</span></td>');
+    if(firsts.has(r.n))[...tr.cells].forEach(c=>c.style.borderTop='2px solid '+gcol(g,GM.G));
+  });
+  let lg=document.getElementById('grpLegend');
+  if(!lg){lg=document.createElement('p');lg.id='grpLegend';lg.className='note';t.parentElement.after(lg);}
+  lg.innerHTML='Groups by points: a group starts with the first team not yet placed and takes every team that is at most '+GTOL+' points below it → '+GM.G+' groups. '+
+    '<span class="gb" style="background:'+gcol(1,GM.G)+'">1</span> top group (green) · '+
+    '<span class="gb" style="background:'+gcol(Math.min(2,GM.G),GM.G)+'">middle</span> groups (light green → orange) · '+
+    '<span class="gb" style="background:'+gcol(GM.G,GM.G)+'">'+GM.G+'</span> bottom group (red).';
+};
+function gOf(name){
+  if(GM.map.has(name))return GM.map.get(name);
+  const k=matchTeam(name,[...GM.map.keys()]);return GM.map.get(k)||null;
+}
+const nameG=n=>{const g=gOf(n);return g?'<span style="color:'+gcol(g,GM.G)+';font-weight:600">'+esc(n)+'</span> <span class="gb" style="background:'+gcol(g,GM.G)+'">'+g+'</span>':esc(n);};
+
+/* ---------- 2) group badges next to each team of the upcoming games ---------- */
+const _render=render;
+render=function(res){
+  _render(res);
+  document.querySelectorAll('#tbl tr.up').forEach(tr=>{
+    const it=res.items[+tr.dataset.i];if(!it)return;
+    tr.cells[1].innerHTML=nameG(it.fx.HomeTeam)+' – '+nameG(it.fx.AwayTeam);
+  });
+};
+
+/* ---------- 3) history of home team (home games) and away team (away games): sort by 1 / X / 2, ±3% highlighted ---------- */
+let LH=null,HS=0;
+function hbox(rows,title,tilde,which,thisOdd){
+  const L=LETS[which],sorted=rows.slice().sort((a,b)=>a.m.o[which]-b.m.o[which]||a.m.date-b.m.date);
+  const lo=thisOdd*0.97,hi=thisOdd*1.03,nr=sorted.filter(x=>x.m.o[which]>=lo&&x.m.o[which]<=hi),cnt=[0,0,0];
+  nr.forEach(x=>cnt[LETS.indexOf(x.k)]++);
+  let h='<div><b>'+title+'</b><br><span class="note">'+sorted.length+' game'+(sorted.length==1?'':'s')+', sorted by the odd of '+L+' from smaller to bigger · this game: odd '+L+' = '+tilde+thisOdd.toFixed(2)+
+    '<br>Green rows = within ±3% ('+lo.toFixed(2)+' – '+hi.toFixed(2)+'): <b>'+nr.length+'</b> game'+(nr.length==1?'':'s')+' · 1:'+cnt[0]+' &nbsp;X:'+cnt[1]+' &nbsp;2:'+cnt[2]+'</span><div class="box"><table><tr><th class="key">Odd '+L+'</th><th>Date</th><th>Game</th><th>Result</th>'+
+    [0,1,2].map(i=>'<th class="n'+(i===which?' key':'')+'">'+LETS[i]+'</th>').join('')+'</tr>';
+  for(const {m,k} of sorted){
+    const near=m.o[which]>=lo&&m.o[which]<=hi;
+    h+='<tr class="'+(near?'near':'')+'"><td class="key n"><b>'+tilde+m.o[which].toFixed(2)+'</b></td><td>'+m.date.toLocaleDateString('en-GB')+'</td><td>'+esc(m.home)+' '+m.hg+'–'+m.ag+' '+esc(m.away)+'</td><td>'+pillOf(k)+'</td>'+
+      [0,1,2].map(i=>'<td class="n'+(i===which?' key':'')+'">'+tilde+m.o[i].toFixed(2)+'</td>').join('')+'</tr>';
+  }
+  if(!sorted.length)h+='<tr><td colspan="7" class="note">No past games found for this team.</td></tr>';
+  return h+'</table></div></div>';
+}
+function hInner(){
+  const {res,f,tilde}=LH,{past,lab}=res,all=past.map((m,i)=>({m,k:LETS[lab[i]]}));
+  const hm=all.filter(x=>x.m.home===f.HomeTeam),aw=all.filter(x=>x.m.away===f.AwayTeam);
+  const od=[+f.B365H,+f.B365D,+f.B365A][HS];
+  return '<div class="ptools" style="margin-top:12px"><b>Sort / compare by odd:</b>'+LETS.map((l,i)=>'<button class="pk'+(i===HS?' on':'')+'" data-hs="'+i+'">'+l+'</button>').join('')+'</div>'+
+    '<div class="hist">'+hbox(hm,esc(f.HomeTeam)+' – home games',tilde,HS,od)+hbox(aw,esc(f.AwayTeam)+' – away games',tilde,HS,od)+'</div>';
+}
+upHistory=function(res,f,tilde){LH={res,f,tilde};return '<div class="hwrap">'+hInner()+'</div>';};
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.hwrap button[data-hs]');if(!b||!LH)return;
+  HS=+b.dataset.hs;b.closest('.hwrap').innerHTML=hInner();
+});
+
+/* ---------- 4) new diagram: past games in the column ±1% around the odd 1 of the selected game ---------- */
+const _ps=plotSelect;
+plotSelect=function(p){_ps(p);if(p&&p.kind==='up'&&PLOT)stripDiagram(PLOT.res.items[p.i]);};
+function stripDiagram(it){
+  const {res}=PLOT,{past,lab,model}=res,x0=it.o[0],TX=0.01,VW=0.06,tilde=res.estHist?'~':'';
+  const band=[],near=[];
+  past.forEach((m,j)=>{const r=Math.abs(m.o[0]/x0-1);if(r<=TX)band.push(j);if(r<=VW)near.push(j);});
+  const cnt=[0,0,0];band.forEach(j=>cnt[lab[j]]++);
+  const n=band.length,box=document.getElementById('dotInfo');
+  let h='<div class="detail"><h3>Column ±1% on the x axis (odd 1) – past games with odd 1 between '+tilde+(x0*(1-TX)).toFixed(2)+' and '+tilde+(x0*(1+TX)).toFixed(2)+'</h3>'+
+    '<div class="note">Shaded band = ±1% around this game\'s odd 1 ('+tilde+x0.toFixed(2)+'); dots inside the band are bold, the ones just outside (up to ±6%) are faint. Vertical position = same y as the main diagram.</div>'+
+    '<canvas id="stripCv"></canvas><div class="kpis"><div><span class="note">Games in the band</span><b>'+n+'</b></div>'+
+    [0,1,2].map(r=>'<div><span class="note">Came '+LETS[r]+'</span><b style="color:var(--c'+(r===1?'x':r+1)+')">'+cnt[r]+(n?' <small>('+(100*cnt[r]/n).toFixed(0)+'%)</small>':'')+'</b></div>').join('')+'</div>';
+  if(n){
+    h+='<div class="scroll"><table><tr><th>Date</th><th>Game</th><th>Result</th><th class="n sa">Odd 1</th><th class="n">X</th><th class="n">2</th></tr>';
+    band.slice().sort((a,b)=>past[a].o[0]-past[b].o[0]).forEach(j=>{const m=past[j];
+      h+='<tr><td>'+m.date.toLocaleDateString('en-GB')+'</td><td>'+esc(m.home)+' '+m.hg+'–'+m.ag+' '+esc(m.away)+'</td><td>'+pillOf(LETS[lab[j]])+'</td><td class="n"><b>'+tilde+m.o[0].toFixed(2)+'</b></td><td class="n">'+tilde+m.o[1].toFixed(2)+'</td><td class="n">'+tilde+m.o[2].toFixed(2)+'</td></tr>';});
+    h+='</table></div>';
+  }
+  box.insertAdjacentHTML('beforeend',h+'</div>');
+  /* draw */
+  const cv=document.getElementById('stripCv'),dpr=window.devicePixelRatio||1,W=cv.clientWidth||700,H=260,pad=40;
+  cv.width=W*dpr;cv.height=H*dpr;const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+  const C=plotCols(),ys=near.map(j=>model.scores[j][1]).concat([it.pc[1]]);
+  let y0=Math.min(...ys),y1=Math.max(...ys);const py=(y1-y0)*0.1||1;y0-=py;y1+=py;
+  const xl=x0*(1-VW),xh=x0*(1+VW),X=v=>pad+(v-xl)/(xh-xl)*(W-2*pad),Y=v=>H-pad/1.3-(v-y0)/(y1-y0)*(H-pad/1.3-12);
+  g.font='11px system-ui';g.fillStyle=C.mut;g.strokeStyle=C.line;g.lineWidth=1;
+  for(let i=0;i<=6;i++){const vx=xl+(xh-xl)*i/6,vy=y0+(y1-y0)*i/6;
+    g.beginPath();g.moveTo(X(vx),12);g.lineTo(X(vx),H-pad/1.3);g.stroke();g.beginPath();g.moveTo(pad,Y(vy));g.lineTo(W-pad/2,Y(vy));g.stroke();
+    g.fillText(vx.toFixed(2),X(vx)-10,H-pad/1.3+14);g.fillText(vy.toFixed(2),2,Y(vy)+4);}
+  g.fillText('x = odd 1',W-pad-40,H-4);
+  g.fillStyle=C.up;g.globalAlpha=0.12;g.fillRect(X(x0*(1-TX)),12,X(x0*(1+TX))-X(x0*(1-TX)),H-pad/1.3-12);g.globalAlpha=1;
+  g.strokeStyle=C.up;g.setLineDash([4,3]);g.beginPath();g.moveTo(X(x0),12);g.lineTo(X(x0),H-pad/1.3);g.stroke();g.setLineDash([]);
+  const inB=new Set(band);
+  near.forEach(j=>{g.globalAlpha=inB.has(j)?0.95:0.3;g.beginPath();g.arc(X(past[j].o[0]),Y(model.scores[j][1]),inB.has(j)?6:4,0,7);g.fillStyle=C.res[lab[j]];g.fill();});
+  g.globalAlpha=1;
+  g.beginPath();g.arc(X(x0),Y(it.pc[1]),9,0,7);g.fillStyle=C.res[{'1':0,'X':1,'2':2}[it.pick]];g.fill();g.lineWidth=3;g.strokeStyle=C.up;g.stroke();g.lineWidth=1;
+}
+})();
+</script>
+<!-- ===== ADD-ON 9: scan several championships and suggest 1 / X / 2 + score ===== -->
+<style>
+#scLog{width:100%;font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px}
+#scList{width:100%;min-width:280px}
+#scOut td,#scOut th{white-space:nowrap}
+#scOut .mini{display:inline-block;min-width:20px;text-align:center;padding:0 5px;border-radius:999px;color:#fff;font-weight:700;font-size:12px;margin-right:2px}
+#scOut .mini.best{outline:2px solid var(--ink)}
+#scOut .cnt{font-variant-numeric:tabular-nums}
+#scOut tr.strong td{background:color-mix(in srgb,var(--c1) 14%,transparent)}
+</style>
+<script>
+(function(){
+const LET=['1','X','2'];
+let CAP=null,SCANNING=false,ROWS=[],PAR=null;
+const g$=id=>document.getElementById(id);
+
+/* capture the analysis of every championship that the normal pipeline renders; no map work while scanning */
+const _render=render;render=function(res){CAP=res;return _render(res);};
+const _sm=showMap;showMap=function(f){if(SCANNING)return;return _sm(f);};
+
+/* ---------- UI ---------- */
+const lgSel=g$('league');
+const card=document.createElement('div');card.className='card';card.id='scanCard';
+card.innerHTML='<h2 style="font-size:16px;margin:0 0 8px">Scan championships – suggestions for the coming games</h2>'+
+ '<div class="row"><div style="flex:2;min-width:280px"><label>Championships (click to select, Ctrl/Cmd-click or Shift-click for several)</label><select id="scList" multiple size="14"></select></div>'+
+ '<div style="flex:1;min-width:230px"><div class="row" style="flex-direction:column;align-items:stretch;gap:8px">'+
+ '<div><label>Column on the x axis (odd 1): ± %</label><input type="number" id="scTx" value="1" step="0.5" min="0.1" style="width:100%"></div>'+
+ '<div><label>Y window: ± fraction of the y range (0.05 = 5%)</label><input type="number" id="scTy" value="0.05" step="0.01" min="0.005" style="width:100%"></div>'+
+ '<div><label>Minimum games in the column to count as "many"</label><input type="number" id="scMinN" value="10" min="3" style="width:100%"></div>'+
+ '<div><label>Show games that meet at least … of the 6 criteria</label><select id="scMinC" style="width:100%"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></div>'+
+ '</div></div></div>'+
+ '<div class="row" style="margin-top:10px"><button class="primary" id="scanGo">Scan champs</button><button id="scAll">Select all</button><button id="scNone">Clear</button><button id="scCsvBtn">Download suggestions CSV</button>'+
+ '<span class="note">Uses the "Days ahead", "Neighbours" and "Weight" settings above. The page above shows the last championship that was scanned.</span></div>'+
+ '<textarea id="scLog" rows="5" readonly placeholder="Progress of the scan appears here…"></textarea>'+
+ '<div id="scOut" style="margin-top:12px"></div>';
+document.querySelector('.card').after(card);
+(function fill(){
+  const sl=g$('scList');
+  const add=(parent,o)=>{if(o.value==='DEMO')return;const n=document.createElement('option');n.value=o.value;n.textContent=o.textContent;parent.appendChild(n);};
+  [...lgSel.children].forEach(ch=>{
+    if(ch.tagName==='OPTGROUP'){const og=document.createElement('optgroup');og.label=ch.label;[...ch.children].forEach(o=>add(og,o));sl.appendChild(og);}
+    else add(sl,ch);
+  });
+})();
+g$('scAll').onclick=()=>[...g$('scList').options].forEach(o=>o.selected=true);
+g$('scNone').onclick=()=>[...g$('scList').options].forEach(o=>o.selected=false);
+const log=s=>{const t=g$('scLog');t.value+=s+'\n';t.scrollTop=t.scrollHeight;};
+
+/* ---------- the six criteria for one upcoming game ---------- */
+function suggestScore(res,f,pick){
+  const past=res.past,hh=past.filter(m=>m.home===f.HomeTeam),aa=past.filter(m=>m.away===f.AwayTeam);
+  const lgH=mean(past.map(m=>m.hg)),lgA=mean(past.map(m=>m.ag)),K=4;
+  const sh=(arr,fn,lg)=>(arr.reduce((s,m)=>s+fn(m),0)+K*lg)/(arr.length+K);
+  const lh=(sh(hh,m=>m.hg,lgH)+sh(aa,m=>m.hg,lgH))/2,la=(sh(aa,m=>m.ag,lgA)+sh(hh,m=>m.ag,lgA))/2;
+  const pois=(l,k)=>{let p=Math.exp(-l);for(let i=1;i<=k;i++)p*=l/i;return p;};
+  let best=null,bp=-1;
+  for(let i=0;i<=6;i++)for(let j=0;j<=6;j++){
+    const r=i>j?0:i===j?1:2;if(r!==pick)continue;
+    const p=pois(lh,i)*pois(la,j);if(p>bp){bp=p;best=[i,j];}
+  }
+  return {score:best[0]+'–'+best[1],lh,la,p:bp,nh:hh.length,na:aa.length};
+}
+function evalAll(res,title,P){
+  const {past,lab,model}=res;
+  const ys=model.scores.map(s=>s[1]),yr=(Math.max(...ys)-Math.min(...ys))||1;
+  return res.items.map(it=>{
+    const f=it.fx,x0=it.o[0],y0=it.pc[1];
+    const band=[],box=[];
+    past.forEach((m,j)=>{if(Math.abs(m.o[0]/x0-1)<=P.tx){band.push(j);if(Math.abs(model.scores[j][1]-y0)<=P.ty*yr)box.push(j);}});
+    const cb=[0,0,0],cx=[0,0,0];band.forEach(j=>cb[lab[j]]++);box.forEach(j=>cx[lab[j]]++);
+    const crit=[0,1,2].map(()=>[false,false,false,false,false,false]);
+    /* 1. the column: many games, most of one result */
+    const mb=cb.indexOf(Math.max(...cb));
+    if(band.length>=P.minn&&cb[mb]/band.length>0.5)crit[mb][0]=true;
+    /* 2. the y window inside the column: all games of one result */
+    if(box.length>=3)for(let r=0;r<3;r++)if(cx[r]===box.length)crit[r][1]=true;
+    /* 3. value bet in this championship: odds within ±5%, at least 20 games, hit rate × odd > 1 */
+    const vb=[0,1,2].map(k=>{
+      const odd=it.o[k],lo=odd*0.95,hi=odd*1.05;let n=0,h=0;
+      past.forEach((m,j)=>{const o=m.o[k];if(o>=lo&&o<=hi){n++;if(lab[j]===k)h++;}});
+      const roi=n?h/n*odd-1:null;if(n>=20&&roi>0)crit[k][2]=true;
+      return {n,h,roi};
+    });
+    /* 4. home team (home games) and away team (away games) with a similar odd of 1, of X and of 2: what did most of them end with */
+    const votes=[0,0,0],vtxt=[];
+    for(let k=0;k<3;k++){
+      const odd=it.o[k],lo=odd*0.97,hi=odd*1.03,inb=m=>m.o[k]>=lo&&m.o[k]<=hi;
+      [['H',j=>past[j].home===f.HomeTeam],['A',j=>past[j].away===f.AwayTeam]].forEach(([side,tf])=>{
+        const c=[0,0,0];past.forEach((m,j)=>{if(tf(j)&&inb(m))c[lab[j]]++;});
+        const n=c[0]+c[1]+c[2],mx=Math.max(...c);
+        if(n&&c.filter(v=>v===mx).length===1)votes[c.indexOf(mx)]++;
+        vtxt.push(LET[k]+side+':'+(n?c.join('-'):'–'));
+      });
+    }
+    const vt=votes[0]+votes[1]+votes[2],mv=votes.indexOf(Math.max(...votes));
+    if(vt>=3&&votes[mv]/vt>=0.6)crit[mv][3]=true;
+    /* 5. the closest game */
+    const cl=lab[it.nearest[0]];crit[cl][4]=true;
+    /* 6. the index (weighted average of the nearest games) */
+    const pk={'1':0,'X':1,'2':2}[it.pick];crit[pk][5]=true;
+    const totals=crit.map(c=>c.filter(Boolean).length);
+    let best=0;for(let r=1;r<3;r++)if(totals[r]>totals[best]||(totals[r]===totals[best]&&cb[r]>cb[best]))best=r;
+    const sc=suggestScore(res,f,best);
+    return {league:title,date:f.date,home:f.HomeTeam,away:f.AwayTeam,est:!!(f.est||res.estHist),o:it.o,best,total:totals[best],totals,crit,
+      band:cb,bandN:band.length,box:cx,boxN:box.length,vb,votes,vtxt,closest:cl,avg:it.avg,pick:pk,score:sc};
+  });
+}
+
+/* ---------- scan loop: runs the normal Load & analyse for each selected championship ---------- */
+g$('scanGo').onclick=async()=>{
+  const sel=[...g$('scList').selectedOptions].map(o=>({v:o.value,t:o.textContent}));
+  const go=g$('go');
+  if(!sel.length){log('Select at least one championship first.');return;}
+  if(go.disabled||SCANNING){log('Another load is still running – wait for it to finish.');return;}
+  PAR={tx:Math.max(0.001,+g$('scTx').value/100),ty:Math.max(0.001,+g$('scTy').value),minn:Math.max(3,+g$('scMinN').value),minc:+g$('scMinC').value};
+  SCANNING=true;g$('scanGo').disabled=true;ROWS=[];g$('scLog').value='';g$('scOut').innerHTML='';
+  const prevVal=lgSel.value;let tried=0;
+  for(let i=0;i<sel.length;i++){
+    lgSel.value=sel[i].v;CAP=null;
+    log('['+(i+1)+'/'+sel.length+'] '+sel[i].t+': loading…');
+    try{await go.onclick.call(go);}catch(e){log('   error: '+e.message);}
+    if(!CAP){log('   no analysis – '+(g$('status').textContent.split('\n').filter(Boolean).slice(-1)[0]||'no data').slice(0,220));continue;}
+    tried++;
+    const rows=evalAll(CAP,sel[i].t,PAR);ROWS.push(...rows);
+    log('   '+rows.length+' game(s) analysed, '+rows.filter(r=>r.total>=PAR.minc).length+' with at least '+PAR.minc+' criteria');
+    showResults();
+  }
+  lgSel.value=prevVal;SCANNING=false;g$('scanGo').disabled=false;
+  log('Done: '+ROWS.length+' game(s) from '+tried+' championship(s).');
+  showResults();
+};
+g$('scMinC').onchange=()=>{if(PAR){PAR.minc=+g$('scMinC').value;showResults();}};
+
+/* ---------- results table ---------- */
+const mini=(r,best)=>'<span class="mini p'+LET[r]+(r===best?' best':'')+'">'+LET[r]+'</span>';
+const letters=(x,c)=>{const l=[0,1,2].filter(r=>x.crit[r][c]);return l.length?l.map(r=>mini(r,x.best)).join(''):'<span class="note">–</span>';};
+function showResults(){
+  const out=g$('scOut');
+  if(!ROWS.length){out.innerHTML='';return;}
+  const list=ROWS.filter(r=>r.total>=PAR.minc).sort((a,b)=>b.total-a.total||a.date-b.date);
+  let h='<div class="note" style="margin-bottom:6px"><b>'+list.length+'</b> of '+ROWS.length+' scanned games meet at least <b>'+PAR.minc+'</b> of the 6 criteria. '+
+   'Criteria: <b>1</b> column ±'+(PAR.tx*100).toFixed(1)+'% on odd 1 has ≥'+PAR.minn+' games and most are of the same result · <b>2</b> y window ±'+PAR.ty+' of the range inside the column is all one result (≥3 games) · '+
+   '<b>3</b> value bet in this championship (odd ±5%, ≥20 games, hit rate × odd &gt; 1) · <b>4</b> home team at home and away team away, with a similar odd of 1, X and 2 (±3%), mostly end the same way · <b>5</b> the closest game · <b>6</b> the index (weighted average of the nearest games). '+
+   'Outlined letter = the suggested result. ~ = odds estimated by the model.</div>';
+  if(!list.length){out.innerHTML=h+'<div class="note">No game reaches that many criteria. Lower the number above to see more.</div>';return;}
+  h+='<div class="scroll"><table><tr><th>Championship</th><th>Date</th><th>Match</th><th class="n">1</th><th class="n">X</th><th class="n">2</th><th>Suggest</th><th class="n">Criteria</th>'+
+     '<th title="column ±1% on odd 1: games in the column and how they ended (1-X-2)">1 Column</th><th title="y window inside the column">2 Y window</th><th title="value bet">3 Value</th><th title="home team at home and away team away: votes of the six comparisons">4 Teams</th><th>5 Closest</th><th>6 Index</th><th>Score</th></tr>';
+  for(const x of list){
+    const e=x.est?'~':'',pr=x.o.map(v=>e+v.toFixed(2));
+    const vbTip=x.vb.map((v,k)=>LET[k]+': '+v.h+'/'+v.n+(v.roi==null?'':' → '+(v.roi>0?'+':'')+(v.roi*100).toFixed(0)+'%')).join(' · ');
+    h+='<tr class="'+(x.total>=5?'strong':'')+'"><td>'+esc(x.league)+'</td><td>'+fmtD(x.date)+'</td><td>'+esc(x.home)+' – '+esc(x.away)+'</td>'+
+      '<td class="n">'+pr[0]+'</td><td class="n">'+pr[1]+'</td><td class="n">'+pr[2]+'</td>'+
+      '<td>'+mini(x.best,x.best)+'</td><td class="n"><b>'+x.total+'/6</b></td>'+
+      '<td title="'+esc(x.bandN+' games in the column: 1:'+x.band[0]+' X:'+x.band[1]+' 2:'+x.band[2])+'">'+letters(x,0)+' <span class="note cnt">'+x.bandN+' · '+x.band.join('-')+'</span></td>'+
+      '<td title="'+esc(x.boxN+' games in the window: 1:'+x.box[0]+' X:'+x.box[1]+' 2:'+x.box[2])+'">'+letters(x,1)+' <span class="note cnt">'+x.boxN+' · '+x.box.join('-')+'</span></td>'+
+      '<td title="'+esc(vbTip)+'">'+letters(x,2)+'</td>'+
+      '<td title="'+esc(x.vtxt.join('  ')+'  (H = home team at home, A = away team away; counts 1-X-2)')+'">'+letters(x,3)+' <span class="note cnt">'+x.votes.join('-')+'</span></td>'+
+      '<td>'+letters(x,4)+'</td><td>'+letters(x,5)+' <span class="note cnt">'+(x.avg>0?'+':'')+x.avg.toFixed(2)+'</span></td>'+
+      '<td title="expected goals '+x.score.lh.toFixed(2)+' – '+x.score.la.toFixed(2)+' from '+x.score.nh+' home games of the home team and '+x.score.na+' away games of the away team"><b>'+x.score.score+'</b> <span class="note cnt">('+x.score.lh.toFixed(1)+'–'+x.score.la.toFixed(1)+')</span></td></tr>';
+  }
+  out.innerHTML=h+'</table></div><p class="note">Score = the most likely scoreline (Poisson) that matches the suggested result, using the goals the home team scores/concedes at home and the away team scores/concedes away (last + this season, shrunk toward the league average). Past results do not guarantee anything. Gamble responsibly.</p>';
+}
+
+/* ---------- CSV ---------- */
+g$('scCsvBtn').onclick=()=>{
+  if(!ROWS.length){log('Nothing to download yet – press Scan champs first.');return;}
+  const q=v=>{v=String(v==null?'':v);return /[",\n;]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;},d2=n=>String(n).padStart(2,'0');
+  let csv='championship,date,time,home,away,odd_1,odd_X,odd_2,suggestion,criteria_met,c1_column,c2_ywindow,c3_value,c4_teams,c5_closest,c6_index,score,est_odds\n';
+  const L=(x,c)=>[0,1,2].filter(r=>x.crit[r][c]).map(r=>LET[r]).join('');
+  for(const x of ROWS.slice().sort((a,b)=>b.total-a.total||a.date-b.date)){
+    const d=x.date;
+    csv+=[x.league,d.getFullYear()+'-'+d2(d.getMonth()+1)+'-'+d2(d.getDate()),d2(d.getHours())+':'+d2(d.getMinutes()),x.home,x.away,x.o[0].toFixed(2),x.o[1].toFixed(2),x.o[2].toFixed(2),
+      LET[x.best],x.total,L(x,0),L(x,1),L(x,2),L(x,3),L(x,4),L(x,5),x.score.score,x.est?1:0].map(q).join(',')+'\n';
+  }
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));a.download='scan_suggestions.csv';
+  document.body.appendChild(a);a.click();a.remove();
+};
+})();
+</script>
+
+</body>
+</html>
